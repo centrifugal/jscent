@@ -1,0 +1,17 @@
+{
+  "name": "jscent",
+  "description": "Node.js client to interact with the Centrifugo HTTP API",
+  "version": "0.1.0",
+  "author": "Alexandr Emelin <frvzmb@gmail.com>",
+  "contributors": [],
+  "dependencies": {
+    "request": "=2.45.0"
+  },
+  "devDependencies": {},
+  "scripts": {},
+  "keywords": ["centrifugo", "websockets", "sockjs", "real-time"],
+  "license": "MIT",
+  "repository": "https://github.com/centrifugal/jscent",
+  "main": "lib/client",
+  "engines": { "node": ">= 0.8.0" }
+}
