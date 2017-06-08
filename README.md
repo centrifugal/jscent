@@ -35,6 +35,5 @@ var Token = require('jscent').Token;
 
 var TokenGen = new Token('SECRET_KEY');
 var token = TokenGen.clientToken(user, timestamp, info);
-});
 ```
 
