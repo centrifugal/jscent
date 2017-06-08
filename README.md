@@ -26,3 +26,14 @@ Methods of the Client take an optional callback as the last argument. After perf
 
 All operational errors are wrapped into a Client.RequestError object.
 
+### generating a token
+to create a token as described here:
+https://fzambia.gitbooks.io/centrifugal/content/clients/javascript.html#token-required
+
+```javascript
+var Token = require('jscent').Token;
+
+var TokenGen = new Token('SECRET_KEY');
+var token = TokenGen.clientToken(user, timestamp, info);
+```
+
