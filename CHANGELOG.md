@@ -1,3 +1,8 @@
+0.2.0
+=====
+
+* fixed deprecated usage of node-uuid in request dep, thanks @skarbovskiy. Details in [#9](https://github.com/centrifugal/jscent/pull/9)
+
 0.1.2
 =====
 
