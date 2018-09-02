@@ -1,3 +1,8 @@
+0.2.1
+=====
+
+* Added `strictSSL` to config options - see [#10](https://github.com/centrifugal/jscent/pull/10)
+
 0.2.0
 =====
 
