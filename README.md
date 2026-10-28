@@ -27,7 +27,7 @@ on Node.js, Deno, Bun and edge runtimes such as Cloudflare Workers.
 jscent 1 replaces jscent 0.2: see [MIGRATING.md](MIGRATING.md). jscent
 implements the
 [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/v4_dev/spec.md),
-version 0.1.
+version 0.2.
 
 ## Example
 
