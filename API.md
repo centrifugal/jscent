@@ -1765,7 +1765,7 @@ DeviceFilter selects devices. Centrifugo PRO only.
 DeviceListRequest returns a paginated list of registered devices.
 Centrifugo PRO only.
 
-- `filter: DeviceFilter` - Selects the devices to list. Required.
+- `filter?: DeviceFilter` - Selects the devices to list: all of them when unset.
 - `includeTotalCount?: boolean` - Includes the total count for the filter in the result.
 - `includeMeta?: boolean` - Includes meta of each device.
 - `includeTopics?: boolean` - Includes topics of each device.
@@ -1786,13 +1786,13 @@ Centrifugo PRO only.
 
 DeviceLocaleUpdate sets the locale of devices. Centrifugo PRO only.
 
-- `locale: string` - The locale to set. Required.
+- `locale: string` - The locale to set. Required. "" clears it.
 
 #### interface `DeviceMetaUpdate`
 
 DeviceMetaUpdate sets the meta of devices. Centrifugo PRO only.
 
-- `meta: Record<string, string>` - The meta to set. Required.
+- `meta: Record<string, string>` - The meta to set. Required. An empty map clears it.
 
 #### interface `DeviceRegisterRequest`
 
@@ -1837,7 +1837,7 @@ moment. Centrifugo PRO only.
 
 DeviceTimezoneUpdate sets the timezone of devices. Centrifugo PRO only.
 
-- `timezone: string` - The IANA time zone to set. Required.
+- `timezone: string` - The IANA time zone to set. Required. "" clears it.
 
 #### interface `DeviceTopic`
 
@@ -1931,7 +1931,7 @@ moment. Centrifugo PRO only.
 
 DeviceUserUpdate sets the user of devices. Centrifugo PRO only.
 
-- `user: string` - The user ID to set. Required.
+- `user: string` - The user ID to set. Required. "" detaches the devices from their user.
 
 #### interface `Disconnect`
 
@@ -2604,7 +2604,7 @@ Centrifugo PRO only.
 UserTopicUpdateRequest changes the topics of a user. The change is also
 applied to the user's registered devices. Centrifugo PRO only.
 
-- `user: string` - The user ID. Required.
+- `user: string` - The user ID. Required. "" updates the global binding, which every device - anonymous ones included - gets on its next `deviceRegister`.
 - `op: string` - The operation: add, remove or set. Required.
 - `topics?: readonly string[]` - The topics for the operation.
 

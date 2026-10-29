@@ -257,6 +257,9 @@ function emitInterface(s: Schema, sh: Shapes, m: Message, name: string, input: b
     // A field the proto marks plainly "Required." is a required property;
     // "Required unless ..." stays optional.
     const optional = input && !/\bRequired\./.test(f.doc.join(' '));
+    if (input && !optional) {
+      requiredFields.add(`${m.name}.${f.name}`);
+    }
     out += `  ${input ? '' : 'readonly '}${camel(f.name)}${optional ? '?' : ''}: ${fieldType(sh, f, input)};\n`;
   }
   return `${out}}\n`;
@@ -451,7 +454,41 @@ function format(files: Map<string, string>): Map<string, string> {
   }
 }
 
-const files = format(generate());
+// The fields made required properties, as "Message.field": checked against
+// gen/required_fields.txt, so that a proto comment gaining "Required." - a
+// breaking change of the types taking it - is a decision, not a side effect of
+// a sync.
+const requiredFields = new Set<string>();
+const REQUIRED_FILE = join(ROOT, 'gen/required_fields.txt');
+
+/** Exits when the required fields differ from REQUIRED_FILE; with accept, records them there instead. */
+function checkRequired(accept: boolean): void {
+  const want = [...requiredFields].sort();
+  if (accept) {
+    writeFileSync(REQUIRED_FILE, want.map((r) => `${r}\n`).join(''));
+    return;
+  }
+  let have: string[] = [];
+  try {
+    have = readFileSync(REQUIRED_FILE, 'utf8').split(/\s+/).filter(Boolean);
+  } catch {}
+  const added = want.filter((r) => !have.includes(r));
+  const removed = have.filter((r) => !want.includes(r));
+  if (added.length > 0 || removed.length > 0) {
+    console.error(
+      'the fields the protos mark Required. changed:' +
+        (added.length > 0 ? `\n  newly required (breaking: calls without them fail): ${added.join(', ')}` : '') +
+        (removed.length > 0 ? `\n  no longer required: ${removed.join(', ')}` : '') +
+        '\nReview them, then run node gen/generate.ts --accept-required to record them in gen/required_fields.txt',
+    );
+    process.exit(1);
+  }
+}
+
+const generated = generate();
+// Before writing: nothing is generated from unreviewed required fields.
+checkRequired(process.argv.includes('--accept-required'));
+const files = format(generated);
 const target = join(ROOT, 'src/generated');
 if (process.argv.includes('--check')) {
   const stale = [...files].filter(([name, code]) => {

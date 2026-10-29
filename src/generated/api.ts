@@ -1248,7 +1248,10 @@ export const DeviceRemoveRequestFields: Fields = [
 
 /** DeviceUserUpdate sets the user of devices. Centrifugo PRO only. */
 export interface DeviceUserUpdate {
-  /** The user ID to set. Required. */
+  /**
+   * The user ID to set. Required. "" detaches the devices from their
+   * user.
+   */
   user: string;
 }
 
@@ -1257,7 +1260,7 @@ export const DeviceUserUpdateFields: Fields = [['user', STRING]];
 
 /** DeviceTimezoneUpdate sets the timezone of devices. Centrifugo PRO only. */
 export interface DeviceTimezoneUpdate {
-  /** The IANA time zone to set. Required. */
+  /** The IANA time zone to set. Required. "" clears it. */
   timezone: string;
 }
 
@@ -1266,7 +1269,7 @@ export const DeviceTimezoneUpdateFields: Fields = [['timezone', STRING]];
 
 /** DeviceLocaleUpdate sets the locale of devices. Centrifugo PRO only. */
 export interface DeviceLocaleUpdate {
-  /** The locale to set. Required. */
+  /** The locale to set. Required. "" clears it. */
   locale: string;
 }
 
@@ -1275,7 +1278,7 @@ export const DeviceLocaleUpdateFields: Fields = [['locale', STRING]];
 
 /** DeviceMetaUpdate sets the meta of devices. Centrifugo PRO only. */
 export interface DeviceMetaUpdate {
-  /** The meta to set. Required. */
+  /** The meta to set. Required. An empty map clears it. */
   meta: Record<string, string>;
 }
 
@@ -1324,8 +1327,8 @@ export const DeviceFilterFields: Fields = [
  * Centrifugo PRO only.
  */
 export interface DeviceListRequest {
-  /** Selects the devices to list. Required. */
-  filter: DeviceFilter;
+  /** Selects the devices to list: all of them when unset. */
+  filter?: DeviceFilter;
   /**
    * Includes the total count for the filter in the
    * result.
@@ -1497,7 +1500,10 @@ export const DeviceTopicUpdateRequestFields: Fields = [
  * applied to the user's registered devices. Centrifugo PRO only.
  */
 export interface UserTopicUpdateRequest {
-  /** The user ID. Required. */
+  /**
+   * The user ID. Required. "" updates the global binding, which every
+   * device - anonymous ones included - gets on its next `deviceRegister`.
+   */
   user: string;
   /** The operation: add, remove or set. Required. */
   op: string;

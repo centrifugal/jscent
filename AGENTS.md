@@ -13,6 +13,7 @@ changing code.
 | Path | What |
 |---|---|
 | `proto/api.proto`, `proto/proxy.proto` | Copies of Centrifugo's protos, from a released tag (`CENTRIFUGO_REF=v6.10.2 npm run sync-proto`) |
+| `gen/required_fields.txt` | The fields the protos mark "Required.", made required properties. Generation fails when the protos' list differs: a newly required field breaks every call without it, so review the change - fix the proto upstream if Centrifugo accepts the field absent - then `node gen/generate.ts --accept-required` |
 | `gen/` | `proto.ts` parses the protos, `generate.ts` writes `src/generated/`, `api_docs.ts` writes `API.md` from `dist/`'s declarations |
 | `src/generated/` | Generated - never edited: request and result types, field descriptors, the methods of the client, a batch and `command` |
 | `API.md` | The API reference - never edited |
