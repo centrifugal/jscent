@@ -1105,7 +1105,10 @@ export interface InvalidateUserTokensRequest {
    * Optional, but a value matching the token expiration is recommended.
    */
   expireAt?: number;
-  /** The ID of the user whose tokens to invalidate. Required. */
+  /**
+   * The ID of the user whose tokens to invalidate. Required. ""
+   * invalidates the tokens of anonymous users.
+   */
   user: string;
   /**
    * The Unix time in seconds: tokens issued before it are

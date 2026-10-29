@@ -2056,7 +2056,7 @@ InvalidateUserTokensRequest revokes all tokens of a user issued before a
 certain time (based on the iat claim of a JWT). Centrifugo PRO only.
 
 - `expireAt?: number` - The Unix time in seconds when the invalidation expires. Optional, but a value matching the token expiration is recommended.
-- `user: string` - The ID of the user whose tokens to invalidate. Required.
+- `user: string` - The ID of the user whose tokens to invalidate. Required. "" invalidates the tokens of anonymous users.
 - `issuedBefore?: number` - The Unix time in seconds: tokens issued before it are considered revoked. If not set, the current time is used.
 - `channel?: string` - Limits the invalidation to subscription tokens for this channel.
 
