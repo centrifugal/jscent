@@ -80,8 +80,9 @@ export interface RequestInfo {
 export interface AutoBatch {
   /**
    * How many requests may be in flight before calls start to wait and be
-   * batched. A smaller value batches more; something like 8 suits most
-   * applications.
+   * batched: about half the calls the process makes at once. Above that, it
+   * never batches; just below, it batches calls one at a time, and only limits
+   * them.
    */
   maxInFlight: number;
   /** The most calls one batch carries: 1000 by default. */

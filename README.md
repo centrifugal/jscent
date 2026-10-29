@@ -26,7 +26,7 @@ on Node.js, Deno, Bun and edge runtimes such as Cloudflare Workers.
 
 jscent 1 replaces jscent 0.2: see [MIGRATING.md](MIGRATING.md). jscent
 implements the
-[Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/v4_dev/spec.md),
+[Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md),
 version 0.2.
 
 ## Example
@@ -230,9 +230,15 @@ publications into different channels may not, unless the namespace sets
 
 ## Automatic batching
 
-With `autoBatch`, calls made concurrently go out together once enough
+With `autoBatch`, calls made concurrently go out together once `maxInFlight`
 requests are in flight, with no delay otherwise, since nothing waits for a
-timer:
+timer.
+
+It is for processes making many calls at once - a server handling many
+requests concurrently, a worker fanning publications out - and does nothing
+for one making a few at a time. Set `maxInFlight` to about half the calls the
+process makes at once: above that, it never batches; just below, it batches
+calls one at a time, and only limits them:
 
 ```ts
 const client = new Client({ apiEndpoint, apiKey, autoBatch: { maxInFlight: 8 } });
@@ -241,8 +247,7 @@ const client = new Client({ apiEndpoint, apiKey, autoBatch: { maxInFlight: 8 } }
 Every call still gets its own result or error, and keeps its own timeout.
 Calls sharing a batch share its request, though: if the request itself fails -
 the network, a body too large for a proxy in front of Centrifugo (nginx
-refuses bodies over 1 MB by default) - every call in it fails. A smaller
-`maxInFlight` batches more; 8 suits most applications.
+refuses bodies over 1 MB by default) - every call in it fails.
 
 ## Authentication
 

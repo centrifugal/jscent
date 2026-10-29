@@ -2,7 +2,7 @@
 
 jscent is the JavaScript and TypeScript SDK for Centrifugo's HTTP server API,
 written to the
-[Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/v4_dev/spec.md),
+[Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md),
 whose reference implementation is gocent. Applications call it on their hot
 paths, on Node.js, Deno, Bun and edge runtimes, so it has to be correct under
 concurrency, hard to misuse, and use web standards only. Read this before

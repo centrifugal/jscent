@@ -1,6 +1,6 @@
 # v1.0.0
 
-A rewrite to the [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/v4_dev/spec.md),
+A rewrite to the [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md),
 for Centrifugo v6. Migrating from jscent 0.2: see [MIGRATING.md](MIGRATING.md).
 
 - No dependencies: `fetch` and Web Crypto only, on Node.js 22 or newer, Deno, Bun and edge runtimes. TypeScript types included; an ES module, which Node.js 22.12+ also loads with `require`.

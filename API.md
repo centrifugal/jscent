@@ -308,7 +308,7 @@ request, though: when it fails as a whole - the network, the credentials, a
 body too large for a proxy in front of Centrifugo (nginx refuses bodies
 over 1 MB by default) - every call in it fails with that error.
 
-- `maxInFlight: number` - How many requests may be in flight before calls start to wait and be batched. A smaller value batches more; something like 8 suits most applications.
+- `maxInFlight: number` - How many requests may be in flight before calls start to wait and be batched: about half the calls the process makes at once. Above that, it never batches; just below, it batches calls one at a time, and only limits them.
 - `maxBatchSize?: number` - The most calls one batch carries: 1000 by default.
 
 ### interface `BroadcastRetryOptions`

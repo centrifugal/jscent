@@ -1,7 +1,7 @@
 # Migrating from jscent 0.2 to jscent 1
 
 jscent 1 is a rewrite, to the
-[Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/v4_dev/spec.md).
+[Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md).
 jscent 0.2 was written for Centrifugo 1, whose API requests were signed with
 the secret; Centrifugo v6 refuses them, so code using jscent 0.2 does not work
 with it at all, and moves over call by call, as the table below shows.
