@@ -13,8 +13,9 @@ import {
   TimeoutError,
 } from './errors.ts';
 import { type BroadcastRequest, ClientMethods, METHODS } from './generated/api.ts';
+import { checkKeys } from './options.ts';
 import { checkBigIntegers, decodeJSON } from './payload.ts';
-import type { CallOptions } from './request.ts';
+import { type CallOptions, checkCallOptions } from './request.ts';
 import { type BroadcastAttempt, exponentialBackoff, wait } from './retry.ts';
 import { encodeRequest } from './validate.ts';
 import { decode, kindOf } from './wire.ts';
@@ -89,6 +90,47 @@ export interface AutoBatch {
   maxBatchSize?: number;
 }
 
+/**
+ * The fetch a Client sends with: the runtime's, or one of your own - undici's,
+ * an instrumented one, a fake in tests. Only this much of fetch is used, so
+ * any of them fits without a cast.
+ */
+export type Fetch = (url: string, init: FetchInit) => Promise<FetchResponse>;
+
+/** What a Client passes its fetch: a POST of JSON text. */
+export interface FetchInit {
+  method: 'POST';
+  headers: Record<string, string>;
+  body: string;
+  redirect: 'manual';
+  signal: AbortSignal;
+}
+
+/** What a Client reads of fetch's response: any fetch's Response has it. */
+export interface FetchResponse {
+  readonly status: number;
+  readonly type?: string;
+  readonly headers: Headers;
+  readonly body: {
+    getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(): Promise<void> };
+  } | null;
+  text(): Promise<string>;
+}
+
+/** The keys of ClientOptions. */
+const CLIENT_OPTIONS = [
+  'apiEndpoint',
+  'getApiEndpoint',
+  'apiKey',
+  'getBearerToken',
+  'fetch',
+  'requestTimeout',
+  'headers',
+  'onRequest',
+  'autoBatch',
+  'bigIntegers',
+] as const;
+
 /** The options of a Client. */
 export interface ClientOptions {
   /**
@@ -114,7 +156,7 @@ export interface ClientOptions {
    * own - with an undici dispatcher, say, or instrumented for tracing. It is
    * called with each request's credentials and headers, never changed.
    */
-  fetch?: typeof fetch;
+  fetch?: Fetch;
   /** Milliseconds bounding a call without a timeout of its own: 10 seconds by default. */
   requestTimeout?: number;
   /**
@@ -122,7 +164,10 @@ export interface ClientOptions {
    * X-API-Key, Authorization or Content-Type. A User-Agent replaces jscent's.
    */
   headers?: Record<string, string>;
-  /** Called after every HTTP request, for metrics; the call waits for it. */
+  /**
+   * Called after every HTTP request, for metrics; the call waits for it. It
+   * must not throw: what it throws rejects the call in place of its outcome.
+   */
   onRequest?: (info: RequestInfo) => void;
   /** Sends calls made concurrently in batches: see AutoBatch. */
   autoBatch?: AutoBatch;
@@ -156,7 +201,7 @@ export interface BroadcastRetryOptions extends CallOptions {
  *
  * ```ts
  * const client = new Client({ apiEndpoint: 'http://localhost:8000/api', apiKey: process.env.CENTRIFUGO_API_KEY });
- * await client.publish(new PublishRequest({ channel: 'news', data: { text: 'hello' } }));
+ * await client.publish({ channel: 'news', data: { text: 'hello' } });
  * ```
  *
  * Every API method takes its request and resolves to its result, rejecting
@@ -167,7 +212,7 @@ export class Client extends ClientMethods {
   readonly #endpoint: string;
   readonly #endpointFunc: (() => string | Promise<string>) | undefined;
   readonly #tokenFunc: (() => string | Promise<string>) | undefined;
-  readonly #fetch: typeof fetch;
+  readonly #fetch: Fetch;
   readonly #requestTimeout: number;
   readonly #headers: Record<string, string>;
   readonly #onRequest: ((info: RequestInfo) => void) | undefined;
@@ -181,6 +226,12 @@ export class Client extends ClientMethods {
   constructor(options: ClientOptions) {
     super();
     const o = options ?? {};
+    checkKeys(o, CLIENT_OPTIONS, 'client option', (m) => new InvalidConfigError(m), {
+      url: 'apiEndpoint',
+      timeout: 'requestTimeout',
+      secret: 'apiKey',
+      strictSSL: 'fetch',
+    });
     if (o.apiEndpoint === undefined && o.getApiEndpoint === undefined) {
       throw new InvalidConfigError('apiEndpoint is required, for example http://localhost:8000/api');
     }
@@ -254,6 +305,7 @@ export class Client extends ClientMethods {
       checkBigIntegers();
     }
     if (o.autoBatch !== undefined) {
+      checkKeys(o.autoBatch, ['maxInFlight', 'maxBatchSize'], 'autoBatch option', (m) => new InvalidConfigError(m));
       const { maxInFlight, maxBatchSize = DEFAULT_MAX_BATCH_SIZE } = o.autoBatch;
       if (!Number.isInteger(maxInFlight) || maxInFlight < 1) {
         throw new InvalidConfigError('autoBatch.maxInFlight must be 1 or more; leave autoBatch unset to disable it');
@@ -285,7 +337,7 @@ export class Client extends ClientMethods {
    *   await client.broadcast(request);
    * } catch (e) {
    *   if (!(e instanceof BroadcastFailedChannelsError)) throw e;
-   *   logger.warn('broadcast failed in some channels', e.result.failed());
+   *   logger.warn('broadcast failed in some channels', e.result.failed);
    * }
    * ```
    *
@@ -319,6 +371,7 @@ export class Client extends ClientMethods {
    * rejects as broadcast does.
    */
   async broadcastWithRetry(request: BroadcastRequest, options: BroadcastRetryOptions = {}): Promise<BroadcastResult> {
+    checkCallOptions(options, ['maxAttempts', 'attemptTimeout', 'onAttemptError']);
     const { maxAttempts = DEFAULT_MAX_ATTEMPTS, attemptTimeout, onAttemptError, timeout, signal } = options;
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
       throw new InvalidRequestError('invalid broadcast request: maxAttempts must be 1 or more');
@@ -402,6 +455,9 @@ export class Client extends ClientMethods {
       this.checkOpen();
     }
     if (!replied) {
+      if (last instanceof CentError) {
+        last.idempotencyKey = key;
+      }
       throw last ?? new Error('jscent: broadcastWithRetry: no reply and no error');
     }
     return result().check();
@@ -418,6 +474,7 @@ export class Client extends ClientMethods {
    * runs them concurrently, with no order.
    */
   newBatch(options: { parallel?: boolean } = {}): Batch {
+    checkKeys(options, ['parallel'], 'batch option', (m) => new InvalidRequestError(m));
     return new Batch(this, options.parallel === true);
   }
 
@@ -462,6 +519,7 @@ export class Client extends ClientMethods {
   }
 
   async #result(method: string, request: object, options: CallOptions | undefined): Promise<unknown> {
+    checkCallOptions(options);
     const json = encodeRequest(method, request);
     const deadline = this.#deadline(options?.timeout);
     this.#enter();
@@ -661,7 +719,7 @@ export class Client extends ClientMethods {
       }
       throw new NetworkError(`${method}: ${(e as Error)?.message ?? String(e)}`, { cause: e });
     };
-    let resp: Response;
+    let resp: FetchResponse;
     try {
       resp = await this.#fetch(`${base}/${method}`, {
         method: 'POST',
@@ -789,7 +847,7 @@ function httpError(method: string, status: number, body: string, headers: Header
 }
 
 /** A body's start, keep bytes of it, the rest read up to drain bytes so the connection is reused. */
-async function readBounded(resp: Response, keep: number, drain: number): Promise<string> {
+async function readBounded(resp: FetchResponse, keep: number, drain: number): Promise<string> {
   if (resp.body === null) {
     return '';
   }
@@ -800,7 +858,7 @@ async function readBounded(resp: Response, keep: number, drain: number): Promise
   try {
     while (read < drain) {
       const { done, value } = await reader.read();
-      if (done) {
+      if (done || value === undefined) {
         break;
       }
       read += value.byteLength;

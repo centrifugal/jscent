@@ -25,7 +25,7 @@ void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, SI
 /** PublishRequest publishes data into a channel. */
 export interface PublishRequest {
   /** The name of the channel to publish into. Required. */
-  channel?: string;
+  channel: string;
   /**
    * The payload to publish. Required unless `b64data` is set. In the
    * HTTP API it is any JSON value; over GRPC it may be binary.
@@ -99,7 +99,7 @@ export const PublishResultFields: Fields = [
 /** BroadcastRequest publishes the same data into many channels. */
 export interface BroadcastRequest {
   /** The list of channels to publish into. Required. */
-  channels?: readonly string[];
+  channels: readonly string[];
   /**
    * The payload to publish into each channel. Required unless
    * `b64data` is set. In the HTTP API it is any JSON value; over GRPC it may
@@ -203,7 +203,7 @@ export const FilterNodeFields: Fields = [
  */
 export interface SubscribeRequest {
   /** The name of the channel to subscribe to. Required. */
-  channel?: string;
+  channel: string;
   /**
    * The ID of the user to subscribe. Required, unless `allUsers` is
    * used in Centrifugo PRO.
@@ -310,7 +310,7 @@ export const SubscribeResultFields: Fields = [];
 /** UnsubscribeRequest unsubscribes a user from a channel. */
 export interface UnsubscribeRequest {
   /** The name of the channel to unsubscribe from. Required. */
-  channel?: string;
+  channel: string;
   /**
    * The ID of the user to unsubscribe. Required, unless `allUsers`
    * is used in Centrifugo PRO.
@@ -424,7 +424,7 @@ export const DisconnectResultFields: Fields = [];
  */
 export interface PresenceRequest {
   /** The name of the channel. Required. */
-  channel?: string;
+  channel: string;
 }
 
 /** @internal */
@@ -466,7 +466,7 @@ export const PresenceResultFields: Fields = [['presence', MESSAGE, MAP, () => Cl
  */
 export interface PresenceStatsRequest {
   /** The name of the channel. Required. */
-  channel?: string;
+  channel: string;
 }
 
 /** @internal */
@@ -506,7 +506,7 @@ export const StreamPositionFields: Fields = [
  */
 export interface HistoryRequest {
   /** The name of the channel. Required. */
-  channel?: string;
+  channel: string;
   /**
    * The maximum number of publications to return; -1 returns all
    * the channel keeps. If not set, only the current stream position is
@@ -571,7 +571,7 @@ export const HistoryResultFields: Fields = [
  */
 export interface HistoryRemoveRequest {
   /** The name of the channel. Required. */
-  channel?: string;
+  channel: string;
 }
 
 /** @internal */
@@ -929,7 +929,7 @@ export const SubscriptionTokenInfoFields: Fields = [
  */
 export interface UpdateUserStatusRequest {
   /** The list of user IDs to update the status for. Required. */
-  users?: readonly string[];
+  users: readonly string[];
   /**
    * An optional custom state to store in the user status. It can
    * be restricted by the user_status.state_regex option.
@@ -955,7 +955,7 @@ export const UpdateUserStatusResultFields: Fields = [];
 /** GetUserStatusRequest returns the status of users. Centrifugo PRO only. */
 export interface GetUserStatusRequest {
   /** The list of user IDs to get the status for. Required. */
-  users?: readonly string[];
+  users: readonly string[];
 }
 
 /** @internal */
@@ -1002,7 +1002,7 @@ export const UserStatusFields: Fields = [
 /** DeleteUserStatusRequest deletes the status of users. Centrifugo PRO only. */
 export interface DeleteUserStatusRequest {
   /** The list of user IDs to delete the status for. Required. */
-  users?: readonly string[];
+  users: readonly string[];
 }
 
 /** @internal */
@@ -1029,7 +1029,7 @@ export interface BlockUserRequest {
    */
   expireAt?: number;
   /** The ID of the user to block. Required. */
-  user?: string;
+  user: string;
 }
 
 /** @internal */
@@ -1050,7 +1050,7 @@ export const BlockUserResultFields: Fields = [];
 /** UnblockUserRequest unblocks a user. Centrifugo PRO only. */
 export interface UnblockUserRequest {
   /** The ID of the user to unblock. Required. */
-  user?: string;
+  user: string;
 }
 
 /** @internal */
@@ -1077,7 +1077,7 @@ export interface RevokeTokenRequest {
    */
   expireAt?: number;
   /** The unique ID of the token to revoke (jti claim). Required. */
-  uid?: string;
+  uid: string;
 }
 
 /** @internal */
@@ -1106,7 +1106,7 @@ export interface InvalidateUserTokensRequest {
    */
   expireAt?: number;
   /** The ID of the user whose tokens to invalidate. Required. */
-  user?: string;
+  user: string;
   /**
    * The Unix time in seconds: tokens issued before it are
    * considered revoked. If not set, the current time is used.
@@ -1151,14 +1151,14 @@ export interface DeviceRegisterRequest {
    * The provider of the device token: fcm, hms, apns or
    * webpush. Required.
    */
-  provider?: string;
+  provider: string;
   /**
    * The push token of the device. For webpush, it is the browser
    * PushSubscription serialized as a JSON string. Required.
    */
-  token?: string;
+  token: string;
   /** The device platform: ios, android or web. Required. */
-  platform?: string;
+  platform: string;
   /** The user associated with the device. */
   user?: string;
   /** Additional custom metadata of the device. */
@@ -1249,7 +1249,7 @@ export const DeviceRemoveRequestFields: Fields = [
 /** DeviceUserUpdate sets the user of devices. Centrifugo PRO only. */
 export interface DeviceUserUpdate {
   /** The user ID to set. Required. */
-  user?: string;
+  user: string;
 }
 
 /** @internal */
@@ -1258,7 +1258,7 @@ export const DeviceUserUpdateFields: Fields = [['user', STRING]];
 /** DeviceTimezoneUpdate sets the timezone of devices. Centrifugo PRO only. */
 export interface DeviceTimezoneUpdate {
   /** The IANA time zone to set. Required. */
-  timezone?: string;
+  timezone: string;
 }
 
 /** @internal */
@@ -1267,7 +1267,7 @@ export const DeviceTimezoneUpdateFields: Fields = [['timezone', STRING]];
 /** DeviceLocaleUpdate sets the locale of devices. Centrifugo PRO only. */
 export interface DeviceLocaleUpdate {
   /** The locale to set. Required. */
-  locale?: string;
+  locale: string;
 }
 
 /** @internal */
@@ -1276,7 +1276,7 @@ export const DeviceLocaleUpdateFields: Fields = [['locale', STRING]];
 /** DeviceMetaUpdate sets the meta of devices. Centrifugo PRO only. */
 export interface DeviceMetaUpdate {
   /** The meta to set. Required. */
-  meta?: Record<string, string>;
+  meta: Record<string, string>;
 }
 
 /** @internal */
@@ -1285,7 +1285,7 @@ export const DeviceMetaUpdateFields: Fields = [['meta', STRING, MAP]];
 /** DeviceTopicsUpdate changes the topics of devices. Centrifugo PRO only. */
 export interface DeviceTopicsUpdate {
   /** The operation: add, remove or set. Required. */
-  op?: string;
+  op: string;
   /** The topics for the operation. */
   topics?: readonly string[];
 }
@@ -1325,7 +1325,7 @@ export const DeviceFilterFields: Fields = [
  */
 export interface DeviceListRequest {
   /** Selects the devices to list. Required. */
-  filter?: DeviceFilter;
+  filter: DeviceFilter;
   /**
    * Includes the total count for the filter in the
    * result.
@@ -1471,9 +1471,9 @@ export const UserTopicListRequestFields: Fields = [
  */
 export interface DeviceTopicUpdateRequest {
   /** The ID of the device. Required. */
-  deviceId?: string;
+  deviceId: string;
   /** The operation: add, remove or set. Required. */
-  op?: string;
+  op: string;
   /** The topics for the operation. */
   topics?: readonly string[];
   /**
@@ -1498,9 +1498,9 @@ export const DeviceTopicUpdateRequestFields: Fields = [
  */
 export interface UserTopicUpdateRequest {
   /** The user ID. Required. */
-  user?: string;
+  user: string;
   /** The operation: add, remove or set. Required. */
-  op?: string;
+  op: string;
   /** The topics for the operation. */
   topics?: readonly string[];
 }
@@ -1807,7 +1807,7 @@ export const PushNotificationFields: Fields = [
 /** FcmPushNotification is a notification for FCM. Centrifugo PRO only. */
 export interface FcmPushNotification {
   /** The FCM Message object as JSON. Required. */
-  message?: unknown;
+  message: unknown;
 }
 
 /** @internal */
@@ -1816,7 +1816,7 @@ export const FcmPushNotificationFields: Fields = [['message', PAYLOAD]];
 /** HmsPushNotification is a notification for HMS. Centrifugo PRO only. */
 export interface HmsPushNotification {
   /** The HMS Message object as JSON. Required. */
-  message?: unknown;
+  message: unknown;
 }
 
 /** @internal */
@@ -1827,7 +1827,7 @@ export interface ApnsPushNotification {
   /** The APNs request headers. */
   headers?: Record<string, string>;
   /** The APNs payload as JSON. Required. */
-  payload?: unknown;
+  payload: unknown;
 }
 
 /** @internal */
@@ -1850,7 +1850,7 @@ export interface WebPushPushNotification {
    * The JSON payload delivered to the browser service worker.
    * Required.
    */
-  payload?: unknown;
+  payload: unknown;
 }
 
 /** @internal */
@@ -1866,9 +1866,9 @@ export const WebPushPushNotificationFields: Fields = [
  */
 export interface SendPushNotificationRequest {
   /** Who receives the notification. Required. */
-  recipient?: PushRecipient;
+  recipient: PushRecipient;
   /** The notification to send. Required. */
-  notification?: PushNotification;
+  notification: PushNotification;
   /**
    * A unique identifier of the request, can be used to cancel the
    * push. UUID v4 is recommended; different requests must use different
@@ -1966,12 +1966,12 @@ export interface PushTimeLimitStrategy {
    * The local time, as HH:MM:SS, after which the push
    * may be sent. Required.
    */
-  sendAfterTime?: string;
+  sendAfterTime: string;
   /**
    * The local time, as HH:MM:SS, before which the push
    * must be sent. Required.
    */
-  sendBeforeTime?: string;
+  sendBeforeTime: string;
   /**
    * Sends the push immediately if the device timezone is
    * not set. By default such pushes are dropped.
@@ -2012,9 +2012,9 @@ export const PushRateLimitStrategyFields: Fields = [
 /** RateLimitPolicy allows rate pushes per `intervalMs`. Centrifugo PRO only. */
 export interface RateLimitPolicy {
   /** The allowed number of pushes per interval. Required. */
-  rate?: number;
+  rate: number;
   /** The interval in milliseconds. Required. */
-  intervalMs?: number;
+  intervalMs: number;
 }
 
 /** @internal */
@@ -2047,14 +2047,14 @@ export interface UpdatePushStatusRequest {
    * The `analyticsUid` of the push notification (as in
    * SendPushNotificationRequest). Required.
    */
-  analyticsUid?: string;
+  analyticsUid: string;
   /**
    * The status of the push notification: delivered or
    * interacted. Required.
    */
-  status?: string;
+  status: string;
   /** The Centrifugo device ID. Required. */
-  deviceId?: string;
+  deviceId: string;
   /** The message ID issued by the provider. */
   msgId?: string;
 }
@@ -2082,7 +2082,7 @@ export const UpdatePushStatusResultFields: Fields = [];
  */
 export interface CancelPushRequest {
   /** The uid of the push notification to cancel. Required. */
-  uid?: string;
+  uid: string;
 }
 
 /** @internal */
@@ -2100,9 +2100,9 @@ export const CancelPushResultFields: Fields = [];
 /** MapPublishRequest publishes or updates a key in a map channel. */
 export interface MapPublishRequest {
   /** The name of the map channel. Required. */
-  channel?: string;
+  channel: string;
   /** The entry key. Required. */
-  key?: string;
+  key: string;
   /**
    * The entry data. In the HTTP API it is any JSON value; over GRPC
    * it may be binary.
@@ -2196,9 +2196,9 @@ export const MapPublishResultFields: Fields = [
 /** MapRemoveRequest removes a key from a map channel. */
 export interface MapRemoveRequest {
   /** The name of the map channel. Required. */
-  channel?: string;
+  channel: string;
   /** The key to remove. Required. */
-  key?: string;
+  key: string;
   /**
    * Drops duplicate removals upon retries, as it does for
    * MapPublishRequest: a removal with a key already used in the channel is
@@ -2247,7 +2247,7 @@ export const MapRemoveResultFields: Fields = [
  */
 export interface MapReadStateRequest {
   /** The name of the map channel. Required. */
-  channel?: string;
+  channel: string;
   /**
    * The pagination cursor from the previous page. Empty starts
    * from the beginning.
@@ -2348,7 +2348,7 @@ export const MapEntryFields: Fields = [
 /** MapReadStreamRequest reads the change stream of a map channel. */
 export interface MapReadStreamRequest {
   /** The name of the map channel. Required. */
-  channel?: string;
+  channel: string;
   /**
    * Returns entries after this offset, used with
    * `sinceEpoch`.
@@ -2397,7 +2397,7 @@ export const MapReadStreamResultFields: Fields = [
 /** MapStatsRequest returns statistics about a map channel. */
 export interface MapStatsRequest {
   /** The name of the map channel. Required. */
-  channel?: string;
+  channel: string;
 }
 
 /** @internal */
@@ -2415,7 +2415,7 @@ export const MapStatsResultFields: Fields = [['num_keys', INT]];
 /** MapClearRequest removes all state and stream data of a map channel. */
 export interface MapClearRequest {
   /** The name of the map channel. Required. */
-  channel?: string;
+  channel: string;
 }
 
 /** @internal */
@@ -2434,9 +2434,9 @@ export const MapClearResultFields: Fields = [];
  */
 export interface SharedPollPublishRequest {
   /** The name of the shared poll channel. Required. */
-  channel?: string;
+  channel: string;
   /** The item key. Required. */
-  key?: string;
+  key: string;
   /** The item data, delivered to clients as is. */
   data?: unknown;
   /** Data as base64, for binary payloads. Centrifugo decodes it. */
@@ -2445,7 +2445,7 @@ export interface SharedPollPublishRequest {
    * The item version, must be >= 1. Required. A version not
    * higher than the current one within the same epoch is silently dropped.
    */
-  version?: number;
+  version: number;
   /**
    * The channel-level publisher epoch. A change resets per-key
    * versions and unsubscribes current subscribers with insufficient state.

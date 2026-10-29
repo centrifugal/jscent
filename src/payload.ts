@@ -14,8 +14,8 @@ const rawJSONOf = (JSON as unknown as { rawJSON?: (text: string) => unknown }).r
  * valid JSON when created, and sent unchanged, number text kept - also inside
  * another value:
  *
- *     new PublishRequest({ channel: 'news', data: rawJSON(row.payload) });
- *     new PublishRequest({ channel: 'news', data: { meta, doc: rawJSON(row.doc) } });
+ *     await client.publish({ channel: 'news', data: rawJSON(row.payload) });
+ *     await client.publish({ channel: 'news', data: { meta, doc: rawJSON(row.doc) } });
  *
  * A string, by contrast, is always a JSON string: `data: 'hi'` publishes "hi".
  */

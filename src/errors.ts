@@ -6,6 +6,14 @@ const MAX_NAMED = 3;
 
 /** The base of every error jscent throws. */
 export class CentError extends Error {
+  /**
+   * Set on the error broadcastWithRetry rejects with when no attempt got a
+   * reply - a timeout, say - to the key its attempts carried, made for the
+   * call when the request had none: Centrifugo may have published, and a
+   * retry with this key does not publish twice. Undefined on other errors.
+   */
+  declare idempotencyKey: string | undefined;
+
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = new.target.name;
@@ -192,7 +200,34 @@ export class ClosedError extends CentError {}
  * The request failed on its way: a refused or reset connection, a failed TLS
  * handshake. The cause is the fetch error.
  */
-export class NetworkError extends CentError {}
+export class NetworkError extends CentError {
+  /**
+   * The server's TLS certificate was refused - an unknown CA, an expired
+   * certificate, another host's: no retry fixes it, so retryable is false.
+   * Told from the fetch error's cause unless given.
+   */
+  readonly certificate: boolean;
+
+  constructor(message: string, options?: ErrorOptions & { certificate?: boolean }) {
+    super(message, options);
+    this.certificate = options?.certificate ?? certificateError(options?.cause);
+  }
+}
+
+// Node.js's and Bun's codes for a refused certificate.
+const CERTIFICATE_CODE = /^(?:CERT_|ERR_TLS_CERT|UNABLE_TO_(?:GET|VERIFY)|SELF_SIGNED|DEPTH_ZERO)/;
+
+/** Whether err, or an error it was caused by, refused a TLS certificate. */
+function certificateError(err: unknown): boolean {
+  for (let e = err, depth = 0; e instanceof Error && depth < 8; e = e.cause, depth++) {
+    const code = (e as { code?: unknown }).code;
+    // Deno names it in the message: "invalid peer certificate: UnknownIssuer".
+    if ((typeof code === 'string' && CERTIFICATE_CODE.test(code)) || /certificate/i.test(e.message)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * The request timed out: its `timeout`, or `requestTimeout`. A request which
@@ -332,9 +367,22 @@ export function retryable(err: unknown): boolean {
   if (err instanceof HTTPError) {
     return err.status === 429 || err.status >= 500;
   }
-  if (err instanceof TimeoutError || err instanceof NetworkError) {
+  if (err instanceof NetworkError) {
+    return !err.certificate;
+  }
+  if (err instanceof TimeoutError) {
     return true;
   }
   // A caller's own AbortSignal.timeout(): a timeout, as any other.
   return err instanceof Error && err.name === 'TimeoutError';
+}
+
+/**
+ * How an error in a result renders as JSON: `{code, message}` for an
+ * ApiError, `{message}` for any other.
+ *
+ * @internal
+ */
+export function errorJSON(e: Error): { code?: number; message: string } {
+  return e instanceof ApiError ? { code: e.code, message: e.serverMessage } : { message: e.message };
 }

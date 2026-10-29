@@ -7,6 +7,9 @@ export {
   type BroadcastRetryOptions,
   Client,
   type ClientOptions,
+  type Fetch,
+  type FetchInit,
+  type FetchResponse,
   type RequestInfo,
   USER_AGENT,
 } from './client.ts';

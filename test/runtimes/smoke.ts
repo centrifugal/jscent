@@ -60,7 +60,7 @@ check(
   'HS256 vector',
 );
 check(
-  /^\d+:0:[0-9a-f]{64}$/.test(await sign('shared_poll_secret', { user: '', channel: 'poll:prices', keys: [] })),
+  /^\d+:0:[0-9a-f]{64}$/.test(await sign('shared_poll_secret', { user: '', channel: 'poll:prices', keys: [], expiresAt: token.NEVER })),
   'shared poll signature',
 );
 const ed = (await token.Key.ed25519(new Uint8Array(32).fill(1))).withKeyId('e');
@@ -75,7 +75,7 @@ for (const curve of ['P-256', 'P-384', 'P-521']) {
 }
 
 check(
-  command.publish({ channel: 'c', data: 1 }).toJSON() === '{"method":"publish","payload":{"channel":"c","data":1}}',
+  command.publish({ channel: 'c', data: 1 }).toString() === '{"method":"publish","payload":{"channel":"c","data":1}}',
   'command',
 );
 const batchClient = new Client({

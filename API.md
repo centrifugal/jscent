@@ -19,7 +19,7 @@ safe for concurrent use.
 
 ```ts
 const client = new Client({ apiEndpoint: 'http://localhost:8000/api', apiKey: process.env.CENTRIFUGO_API_KEY });
-await client.publish(new PublishRequest({ channel: 'news', data: { text: 'hello' } }));
+await client.publish({ channel: 'news', data: { text: 'hello' } });
 ```
 
 Every API method takes its request and resolves to its result, rejecting
@@ -50,7 +50,7 @@ try {
   await client.broadcast(request);
 } catch (e) {
   if (!(e instanceof BroadcastFailedChannelsError)) throw e;
-  logger.warn('broadcast failed in some channels', e.result.failed());
+  logger.warn('broadcast failed in some channels', e.result.failed);
 }
 ```
 
@@ -283,10 +283,10 @@ The options of a Client.
 - `getApiEndpoint?: () => string | Promise<string>` - Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed.
 - `apiKey?: string` - Sent as X-API-Key. Leave it and getBearerToken unset when requests are authenticated another way - mutual TLS, a proxy - or not at all.
 - `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey.
-- `fetch?: typeof fetch` - The fetch sending the requests: the runtime's own by default. Pass your own - with an undici dispatcher, say, or instrumented for tracing. It is called with each request's credentials and headers, never changed.
+- `fetch?: Fetch` - The fetch sending the requests: the runtime's own by default. Pass your own - with an undici dispatcher, say, or instrumented for tracing. It is called with each request's credentials and headers, never changed.
 - `requestTimeout?: number` - Milliseconds bounding a call without a timeout of its own: 10 seconds by default.
 - `headers?: Record<string, string>` - Extra headers for every request, for a proxy in front of Centrifugo. Not X-API-Key, Authorization or Content-Type. A User-Agent replaces jscent's.
-- `onRequest?: (info: RequestInfo) => void` - Called after every HTTP request, for metrics; the call waits for it.
+- `onRequest?: (info: RequestInfo) => void` - Called after every HTTP request, for metrics; the call waits for it. It must not throw: what it throws rejects the call in place of its outcome.
 - `autoBatch?: AutoBatch` - Sends calls made concurrently in batches: see AutoBatch.
 - `bigIntegers?: boolean` - Decodes integers past 2^53 in payloads as bigint, as centrifuge-js does: false by default, when they are rounded to the nearest number. See the README before turning it on: a field's type then follows its value.
 
@@ -518,6 +518,13 @@ Adds a user_topic_update command: see Client.userTopicUpdate.
 
 The outcome of one command of a batch, available once the batch is sent.
 
+#### `static resolved<T>(value: T): Pending<T>`
+
+A Pending of no batch, whose result() returns value or throws error: for
+test doubles of code which reads a batch's outcomes.
+
+#### `static resolved<T = never>(value: undefined, error: Error): Pending<T>`
+
 #### `result(): T`
 
 The command's result, or its error thrown: an ApiError for this command,
@@ -527,13 +534,22 @@ when any channel failed.
 
 ### `BatchResult`
 
-The outcome of a sent batch as a whole. Each command's own outcome is in the Pending its add returned.
+```ts
+new BatchResult(replied: boolean, failed?: FailedCommand[])
+```
+
+The outcome of a sent batch as a whole. Each command's own outcome is in the
+Pending its method returned. JSON.stringify renders it as
+`{replied, failed}`, each failed command as `{index, method, error}`, the
+error as `{code, message}`.
 
 - `readonly replied: boolean` - True when Centrifugo replied to every command, the failed ones included; false when the batch failed as a whole. True for an empty batch.
 
-#### `failed(): FailedCommand[]`
+#### `get failed(): FailedCommand[]`
 
-The commands which failed, with their errors, in the order they were added.
+The commands which failed, with their errors, in the order they were added - as the error's failed lists them.
+
+#### `toJSON(): Record<string, unknown>`
 
 ### interface `FailedCommand`
 
@@ -545,16 +561,26 @@ The failure of one command of a batch.
 
 ### `BroadcastResult`
 
-The outcome of a broadcast: one entry per channel, in the order the request listed them.
+```ts
+new BroadcastResult(channels: ChannelResult[], idempotencyKey?: string, attempts?: number, replied?: boolean)
+```
+
+The outcome of a broadcast: one entry per channel, in the order the request
+listed them. JSON.stringify renders it with Centrifugo's field names:
+`{channels, idempotency_key, attempts, replied}`, each channel as
+`{channel, result, error, attempts}` - result when it succeeded, error,
+`{code, message}`, when it failed.
 
 - `readonly channels: ChannelResult[]` - Every channel's outcome.
 - `readonly idempotencyKey: string` - The key the broadcast was sent with: the request's, or the one broadcastWithRetry made when the request had none. A later retry with it does not publish again into the channels which got the publication.
 - `readonly attempts: number` - How many times the broadcast was tried: 1 from broadcast, up to maxAttempts from broadcastWithRetry, 0 when it was refused before sending.
 - `readonly replied: boolean` - True when Centrifugo carried the broadcast out and replied for every channel, the failed ones included; false when it failed as a whole.
 
-#### `failed(): ChannelResult[]`
+#### `get failed(): ChannelResult[]`
 
 The channels which did not get the publication, with their errors, in the order of the request.
+
+#### `toJSON(): Record<string, unknown>`
 
 ### interface `ChannelResult`
 
@@ -576,8 +602,8 @@ queue, a cache - or encoded with rules of your own. It is checked to be
 valid JSON when created, and sent unchanged, number text kept - also inside
 another value:
 
-    new PublishRequest({ channel: 'news', data: rawJSON(row.payload) });
-    new PublishRequest({ channel: 'news', data: { meta, doc: rawJSON(row.doc) } });
+    await client.publish({ channel: 'news', data: rawJSON(row.payload) });
+    await client.publish({ channel: 'news', data: { meta, doc: rawJSON(row.doc) } });
 
 A string, by contrast, is always a JSON string: `data: 'hi'` publishes "hi".
 
@@ -700,7 +726,9 @@ https://centrifugal.dev/docs/server/consumers.
 
 Consumers take it as its method and payload apart - the outbox table's
 method and payload columns, a message attribute - or as the JSON message
-`{"method": ..., "payload": ...}` of toJSON (Kafka, NATS JetStream).
+`{"method": ..., "payload": ...}` of toString (Kafka, NATS JetStream).
+JSON.stringify gives that message too, also of a command inside another
+value, with payload as a JSON object.
 
 Within a partition a consumer keeps commands in order: a channel's commands
 keep their order only when every writer derives their partition from the
@@ -711,12 +739,52 @@ const cmd = command.publish({ channel: 'news', data: { text: 'hi' } });
 await sql`INSERT INTO centrifugo_outbox (method, payload, partition) VALUES (${cmd.method}, ${cmd.payload}, 0)`;
 ```
 
+The outbox table's payload column is jsonb, and `cmd.payload` goes into it
+as it is: JSON text, which PostgreSQL stores as the object.
+
 - `readonly method: string` - The API method, such as "publish".
 - `readonly payload: string` - The request, as JSON text.
 
-#### `toJSON(): string`
+#### `toString(): string`
 
 The command as one JSON message: `{"method": ..., "payload": ...}`.
+
+#### `toJSON(): { method: string; payload: RawJSON; }`
+
+The message of toString for JSON.stringify: payload a JSON object.
+toString keeps the payload's text exactly - integers past 2^53 included -
+where a JSON.stringify of your own parses and writes it again.
+
+### type `Fetch`
+
+```ts
+type Fetch = (url: string, init: FetchInit) => Promise<FetchResponse>;
+```
+
+The fetch a Client sends with: the runtime's, or one of your own - undici's,
+an instrumented one, a fake in tests. Only this much of fetch is used, so
+any of them fits without a cast.
+
+### interface `FetchInit`
+
+What a Client passes its fetch: a POST of JSON text.
+
+- `method: 'POST'`
+- `headers: Record<string, string>`
+- `body: string`
+- `redirect: 'manual'`
+- `signal: AbortSignal`
+
+### interface `FetchResponse`
+
+What a Client reads of fetch's response: any fetch's Response has it.
+
+- `readonly status: number`
+- `readonly type?: string`
+- `readonly headers: Headers`
+- `readonly body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array; }>; cancel(): Promise<void>; }; } | null`
+
+#### `text(): Promise<string>`
 
 ### `USER_AGENT`
 
@@ -760,6 +828,8 @@ new CentError(message: string, options?: ErrorOptions)
 ```
 
 The base of every error jscent throws.
+
+- `idempotencyKey: string | undefined` - Set on the error broadcastWithRetry rejects with when no attempt got a reply - a timeout, say - to the key its attempts carried, made for the call when the request had none: Centrifugo may have published, and a retry with this key does not publish twice. Undefined on other errors.
 
 ### `ApiError`
 
@@ -878,8 +948,14 @@ A call made after the client was closed.
 
 ### `NetworkError`
 
+```ts
+new NetworkError(message: string, options?: ErrorOptions & { certificate?: boolean; })
+```
+
 The request failed on its way: a refused or reset connection, a failed TLS
 handshake. The cause is the fetch error.
+
+- `readonly certificate: boolean` - The server's TLS certificate was refused - an unknown CA, an expired certificate, another host's: no retry fixes it, so retryable is false. Told from the fetch error's cause unless given.
 
 ### `TimeoutError`
 
@@ -974,7 +1050,7 @@ What handle takes: a request in plain terms.
 type OnError = (request: HttpRequest, error: unknown) => void;
 ```
 
-Called with every request answered 400 or 500, and the error.
+Called with every request answered 400 or 500, and the error. It must not throw.
 
 ### interface `NodeRequest`
 
@@ -1319,7 +1395,7 @@ What sign takes.
 - `user: string` - The ID of the connection's user; empty for an anonymous one.
 - `channel: string` - The shared poll channel.
 - `keys: readonly string[]` - The keys the signature covers, exactly and in their order.
-- `expiresAt?: Date` - When the signature expires; unset for one which does not.
+- `expiresAt: Expiry` - When the signature expires: required, as a token's expiry is - a Date, or token.NEVER for a signature which never expires.
 
 ### `sign`
 
@@ -1329,8 +1405,8 @@ function sign(secret: string | Uint8Array, options: SignOptions): Promise<string
 
 The signature authorizing a user to track keys in a channel until
 expiresAt, as Centrifugo verifies it: "iat:exp:hmac", iat now and exp
-expiresAt in Unix seconds - 0 without expiresAt, for a signature which does
-not expire. secret is Centrifugo's shared_poll.hmac_secret_key.
+expiresAt in Unix seconds - 0 for NEVER, a signature which does not expire.
+secret is Centrifugo's shared_poll.hmac_secret_key.
 
 The signature covers exactly keys, in their order: a client tracking other
 keys, or the same in another order, is refused.
@@ -1508,7 +1584,7 @@ the request.
 ApnsPushNotification is a notification for APNs. Centrifugo PRO only.
 
 - `headers?: Record<string, string>` - The APNs request headers.
-- `payload?: unknown` - The APNs payload as JSON. Required.
+- `payload: unknown` - The APNs payload as JSON. Required.
 
 #### interface `BlockUserRequest`
 
@@ -1516,7 +1592,7 @@ BlockUserRequest blocks a user: the user is disconnected and can not
 connect again until unblocked or the block expires. Centrifugo PRO only.
 
 - `expireAt?: number` - The Unix time in seconds when the block expires. Optional, but a reasonably small value is recommended to keep the set of blocked users small.
-- `user?: string` - The ID of the user to block. Required.
+- `user: string` - The ID of the user to block. Required.
 
 #### type `BlockUserResult`
 
@@ -1531,7 +1607,7 @@ Centrifugo PRO only.
 
 BroadcastRequest publishes the same data into many channels.
 
-- `channels?: readonly string[]` - The list of channels to publish into. Required.
+- `channels: readonly string[]` - The list of channels to publish into. Required.
 - `data?: unknown` - The payload to publish into each channel. Required unless `b64data` is set. In the HTTP API it is any JSON value; over GRPC it may be binary.
 - `b64data?: string` - A base64-encoded binary payload, an alternative to `data` to send binary over the HTTP API. Centrifugo decodes it before publishing.
 - `skipHistory?: boolean` - Skips adding the publications to the channels' history.
@@ -1546,7 +1622,7 @@ BroadcastRequest publishes the same data into many channels.
 CancelPushRequest cancels a delayed push notification (sent with
 `sendAt`). Centrifugo PRO only.
 
-- `uid?: string` - The uid of the push notification to cancel. Required.
+- `uid: string` - The uid of the push notification to cancel. Required.
 
 #### type `CancelPushResult`
 
@@ -1646,7 +1722,7 @@ Centrifugo PRO only.
 
 DeleteUserStatusRequest deletes the status of users. Centrifugo PRO only.
 
-- `users?: readonly string[]` - The list of user IDs to delete the status for. Required.
+- `users: readonly string[]` - The list of user IDs to delete the status for. Required.
 
 #### type `DeleteUserStatusResult`
 
@@ -1689,7 +1765,7 @@ DeviceFilter selects devices. Centrifugo PRO only.
 DeviceListRequest returns a paginated list of registered devices.
 Centrifugo PRO only.
 
-- `filter?: DeviceFilter` - Selects the devices to list. Required.
+- `filter: DeviceFilter` - Selects the devices to list. Required.
 - `includeTotalCount?: boolean` - Includes the total count for the filter in the result.
 - `includeMeta?: boolean` - Includes meta of each device.
 - `includeTopics?: boolean` - Includes topics of each device.
@@ -1710,13 +1786,13 @@ Centrifugo PRO only.
 
 DeviceLocaleUpdate sets the locale of devices. Centrifugo PRO only.
 
-- `locale?: string` - The locale to set. Required.
+- `locale: string` - The locale to set. Required.
 
 #### interface `DeviceMetaUpdate`
 
 DeviceMetaUpdate sets the meta of devices. Centrifugo PRO only.
 
-- `meta?: Record<string, string>` - The meta to set. Required.
+- `meta: Record<string, string>` - The meta to set. Required.
 
 #### interface `DeviceRegisterRequest`
 
@@ -1724,9 +1800,9 @@ DeviceRegisterRequest registers a device for push notifications, or
 updates a registered one. Centrifugo PRO only.
 
 - `id?: string` - The device ID. Omit it on first registration: Centrifugo generates one and returns it. Pass the stored value to update the device.
-- `provider?: string` - The provider of the device token: fcm, hms, apns or webpush. Required.
-- `token?: string` - The push token of the device. For webpush, it is the browser PushSubscription serialized as a JSON string. Required.
-- `platform?: string` - The device platform: ios, android or web. Required.
+- `provider: string` - The provider of the device token: fcm, hms, apns or webpush. Required.
+- `token: string` - The push token of the device. For webpush, it is the browser PushSubscription serialized as a JSON string. Required.
+- `platform: string` - The device platform: ios, android or web. Required.
 - `user?: string` - The user associated with the device.
 - `meta?: Record<string, string>` - Additional custom metadata of the device.
 - `topics?: readonly string[]` - The full list of the device's topic subscriptions, replacing the previous one. The user's topics are attached automatically.
@@ -1761,7 +1837,7 @@ moment. Centrifugo PRO only.
 
 DeviceTimezoneUpdate sets the timezone of devices. Centrifugo PRO only.
 
-- `timezone?: string` - The IANA time zone to set. Required.
+- `timezone: string` - The IANA time zone to set. Required.
 
 #### interface `DeviceTopic`
 
@@ -1806,7 +1882,7 @@ Centrifugo PRO only.
 
 DeviceTopicsUpdate changes the topics of devices. Centrifugo PRO only.
 
-- `op?: string` - The operation: add, remove or set. Required.
+- `op: string` - The operation: add, remove or set. Required.
 - `topics?: readonly string[]` - The topics for the operation.
 
 #### interface `DeviceTopicUpdateRequest`
@@ -1815,8 +1891,8 @@ DeviceTopicUpdateRequest changes the topics of a device. The device topic
 list is what decides who gets a push sent to a topic.
 Centrifugo PRO only.
 
-- `deviceId?: string` - The ID of the device. Required.
-- `op?: string` - The operation: add, remove or set. Required.
+- `deviceId: string` - The ID of the device. Required.
+- `op: string` - The operation: add, remove or set. Required.
 - `topics?: readonly string[]` - The topics for the operation.
 - `user?: string` - An optional ownership guard: the update is applied only if the device currently belongs to this user. Otherwise the call fails with a conflict error (or not found if there is no such device).
 
@@ -1855,7 +1931,7 @@ moment. Centrifugo PRO only.
 
 DeviceUserUpdate sets the user of devices. Centrifugo PRO only.
 
-- `user?: string` - The user ID to set. Required.
+- `user: string` - The user ID to set. Required.
 
 #### interface `Disconnect`
 
@@ -1888,7 +1964,7 @@ DisconnectResult is the result of a disconnect call. Empty at the moment.
 
 FcmPushNotification is a notification for FCM. Centrifugo PRO only.
 
-- `message?: unknown` - The FCM Message object as JSON. Required.
+- `message: unknown` - The FCM Message object as JSON. Required.
 
 #### interface `FilterNode`
 
@@ -1910,7 +1986,7 @@ Centrifugo OSS parses it but ignores it.
 
 GetUserStatusRequest returns the status of users. Centrifugo PRO only.
 
-- `users?: readonly string[]` - The list of user IDs to get the status for. Required.
+- `users: readonly string[]` - The list of user IDs to get the status for. Required.
 
 #### interface `GetUserStatusResult`
 
@@ -1925,7 +2001,7 @@ HistoryRemoveRequest removes publications from the history of a channel.
 The current top stream position is kept, so clients do not get
 disconnected because of insufficient state.
 
-- `channel?: string` - The name of the channel. Required.
+- `channel: string` - The name of the channel. Required.
 
 #### type `HistoryRemoveResult`
 
@@ -1941,7 +2017,7 @@ moment.
 HistoryRequest returns publications from the history of a channel.
 History must be enabled for the channel.
 
-- `channel?: string` - The name of the channel. Required.
+- `channel: string` - The name of the channel. Required.
 - `limit?: number` - The maximum number of publications to return; -1 returns all the channel keeps. If not set, only the current stream position is returned, without publications.
 - `since?: StreamPosition` - Returns publications after this stream position.
 - `reverse?: boolean` - Iterates in reverse order, from latest to earliest.
@@ -1958,7 +2034,7 @@ HistoryResult is the result of a history call.
 
 HmsPushNotification is a notification for HMS. Centrifugo PRO only.
 
-- `message?: unknown` - The HMS Message object as JSON. Required.
+- `message: unknown` - The HMS Message object as JSON. Required.
 
 #### type `InfoRequest`
 
@@ -1980,7 +2056,7 @@ InvalidateUserTokensRequest revokes all tokens of a user issued before a
 certain time (based on the iat claim of a JWT). Centrifugo PRO only.
 
 - `expireAt?: number` - The Unix time in seconds when the invalidation expires. Optional, but a value matching the token expiration is recommended.
-- `user?: string` - The ID of the user whose tokens to invalidate. Required.
+- `user: string` - The ID of the user whose tokens to invalidate. Required.
 - `issuedBefore?: number` - The Unix time in seconds: tokens issued before it are considered revoked. If not set, the current time is used.
 - `channel?: string` - Limits the invalidation to subscription tokens for this channel.
 
@@ -1997,7 +2073,7 @@ call. Empty at the moment. Centrifugo PRO only.
 
 MapClearRequest removes all state and stream data of a map channel.
 
-- `channel?: string` - The name of the map channel. Required.
+- `channel: string` - The name of the map channel. Required.
 
 #### type `MapClearResult`
 
@@ -2023,8 +2099,8 @@ MapEntry is an entry of a map channel state or stream.
 
 MapPublishRequest publishes or updates a key in a map channel.
 
-- `channel?: string` - The name of the map channel. Required.
-- `key?: string` - The entry key. Required.
+- `channel: string` - The name of the map channel. Required.
+- `key: string` - The entry key. Required.
 - `data?: unknown` - The entry data. In the HTTP API it is any JSON value; over GRPC it may be binary.
 - `b64data?: string` - Data as base64, for binary over the HTTP API. Centrifugo decodes it.
 - `streamData?: unknown` - Currently not used by the server API.
@@ -2051,7 +2127,7 @@ MapPublishResult is the result of a map publish call.
 MapReadStateRequest reads the current state of a map channel, with
 optional pagination.
 
-- `channel?: string` - The name of the map channel. Required.
+- `channel: string` - The name of the map channel. Required.
 - `cursor?: string` - The pagination cursor from the previous page. Empty starts from the beginning.
 - `limit?: number` - The maximum number of entries per page: -1 means no limit, 0 returns only the stream position. Page sizes may exceed it with the Redis map broker.
 - `key?: string` - Reads a single entry by exact key. cursor and limit are ignored when it is set.
@@ -2072,7 +2148,7 @@ MapReadStateResult is the result of a map read state call.
 
 MapReadStreamRequest reads the change stream of a map channel.
 
-- `channel?: string` - The name of the map channel. Required.
+- `channel: string` - The name of the map channel. Required.
 - `sinceOffset?: number` - Returns entries after this offset, used with `sinceEpoch`.
 - `sinceEpoch?: string` - The epoch of the since position. It must match the current stream epoch.
 - `limit?: number` - The maximum number of entries: -1 means no limit, 0 returns only the stream position.
@@ -2090,8 +2166,8 @@ MapReadStreamResult is the result of a map read stream call.
 
 MapRemoveRequest removes a key from a map channel.
 
-- `channel?: string` - The name of the map channel. Required.
-- `key?: string` - The key to remove. Required.
+- `channel: string` - The name of the map channel. Required.
+- `key: string` - The key to remove. Required.
 - `idempotencyKey?: string` - Drops duplicate removals upon retries, as it does for MapPublishRequest: a removal with a key already used in the channel is not applied again, and its result is suppressed with `suppressReason` "idempotency". Keys are kept for 5 minutes by default.
 
 #### interface `MapRemoveResult`
@@ -2107,7 +2183,7 @@ MapRemoveResult is the result of a map remove call.
 
 MapStatsRequest returns statistics about a map channel.
 
-- `channel?: string` - The name of the map channel. Required.
+- `channel: string` - The name of the map channel. Required.
 
 #### interface `MapStatsResult`
 
@@ -2142,7 +2218,7 @@ NodeResult is information about a Centrifugo node.
 PresenceRequest returns the online presence of a channel: all clients
 currently subscribed to it. Presence must be enabled for the channel.
 
-- `channel?: string` - The name of the channel. Required.
+- `channel: string` - The name of the channel. Required.
 
 #### interface `PresenceResult`
 
@@ -2156,7 +2232,7 @@ PresenceStatsRequest returns short presence information of a channel: the
 number of clients and of unique users. Presence must be enabled for the
 channel.
 
-- `channel?: string` - The name of the channel. Required.
+- `channel: string` - The name of the channel. Required.
 
 #### interface `PresenceStatsResult`
 
@@ -2185,7 +2261,7 @@ Publication is a publication in a channel history.
 
 PublishRequest publishes data into a channel.
 
-- `channel?: string` - The name of the channel to publish into. Required.
+- `channel: string` - The name of the channel to publish into. Required.
 - `data?: unknown` - The payload to publish. Required unless `b64data` is set. In the HTTP API it is any JSON value; over GRPC it may be binary.
 - `b64data?: string` - A base64-encoded binary payload, an alternative to `data` to send binary over the HTTP API. Centrifugo decodes it before publishing.
 - `skipHistory?: boolean` - Skips adding this publication to the channel history.
@@ -2256,16 +2332,16 @@ of its fields. Centrifugo PRO only.
 PushTimeLimitStrategy sends pushes within a window of the device local
 time. Centrifugo PRO only.
 
-- `sendAfterTime?: string` - The local time, as HH:MM:SS, after which the push may be sent. Required.
-- `sendBeforeTime?: string` - The local time, as HH:MM:SS, before which the push must be sent. Required.
+- `sendAfterTime: string` - The local time, as HH:MM:SS, after which the push may be sent. Required.
+- `sendBeforeTime: string` - The local time, as HH:MM:SS, before which the push must be sent. Required.
 - `noTzSendNow?: boolean` - Sends the push immediately if the device timezone is not set. By default such pushes are dropped.
 
 #### interface `RateLimitPolicy`
 
 RateLimitPolicy allows rate pushes per `intervalMs`. Centrifugo PRO only.
 
-- `rate?: number` - The allowed number of pushes per interval. Required.
-- `intervalMs?: number` - The interval in milliseconds. Required.
+- `rate: number` - The allowed number of pushes per interval. Required.
+- `intervalMs: number` - The interval in milliseconds. Required.
 
 #### interface `RefreshRequest`
 
@@ -2297,7 +2373,7 @@ Clients using the token are disconnected shortly, and can not connect
 with it again. Centrifugo PRO only.
 
 - `expireAt?: number` - The Unix time in seconds when the revocation expires. Optional, but a value matching the token expiration is recommended.
-- `uid?: string` - The unique ID of the token to revoke (jti claim). Required.
+- `uid: string` - The unique ID of the token to revoke (jti claim). Required.
 
 #### type `RevokeTokenResult`
 
@@ -2314,8 +2390,8 @@ SendPushNotificationRequest sends a push notification. The request is
 queued and sent to the provider by Centrifugo workers.
 Centrifugo PRO only.
 
-- `recipient?: PushRecipient` - Who receives the notification. Required.
-- `notification?: PushNotification` - The notification to send. Required.
+- `recipient: PushRecipient` - Who receives the notification. Required.
+- `notification: PushNotification` - The notification to send. Required.
 - `uid?: string` - A unique identifier of the request, can be used to cancel the push. UUID v4 is recommended; different requests must use different uids.
 - `sendAt?: number` - The Unix time in seconds when to send the notification. If not set, the notification is sent immediately.
 - `optimizeForReliability?: boolean` - Makes processing heavier, but tolerates edge cases, like not losing inflight pushes when the queue is briefly unavailable.
@@ -2338,11 +2414,11 @@ SharedPollPublishRequest pushes data for a key directly to clients of a
 shared poll channel, without waiting for the next poll cycle. Requires
 versioned mode and publish_enabled on the namespace.
 
-- `channel?: string` - The name of the shared poll channel. Required.
-- `key?: string` - The item key. Required.
+- `channel: string` - The name of the shared poll channel. Required.
+- `key: string` - The item key. Required.
 - `data?: unknown` - The item data, delivered to clients as is.
 - `b64data?: string` - Data as base64, for binary payloads. Centrifugo decodes it.
-- `version?: number` - The item version, must be >= 1. Required. A version not higher than the current one within the same epoch is silently dropped.
+- `version: number` - The item version, must be >= 1. Required. A version not higher than the current one within the same epoch is silently dropped.
 - `epoch?: string` - The channel-level publisher epoch. A change resets per-key versions and unsubscribes current subscribers with insufficient state.
 
 #### type `SharedPollPublishResult`
@@ -2378,7 +2454,7 @@ SubscribeRequest subscribes active sessions of a user to a channel
 (server-side subscription). It does not create a streaming subscription
 for the caller.
 
-- `channel?: string` - The name of the channel to subscribe to. Required.
+- `channel: string` - The name of the channel to subscribe to. Required.
 - `user?: string` - The ID of the user to subscribe. Required, unless `allUsers` is used in Centrifugo PRO.
 - `expireAt?: number` - The Unix time in seconds when the subscription expires.
 - `info?: unknown` - Custom channel info attached to the subscription, used in presence and join/leave messages.
@@ -2412,7 +2488,7 @@ Centrifugo PRO only.
 
 UnblockUserRequest unblocks a user. Centrifugo PRO only.
 
-- `user?: string` - The ID of the user to unblock. Required.
+- `user: string` - The ID of the user to unblock. Required.
 
 #### type `UnblockUserResult`
 
@@ -2427,7 +2503,7 @@ moment. Centrifugo PRO only.
 
 UnsubscribeRequest unsubscribes a user from a channel.
 
-- `channel?: string` - The name of the channel to unsubscribe from. Required.
+- `channel: string` - The name of the channel to unsubscribe from. Required.
 - `user?: string` - The ID of the user to unsubscribe. Required, unless `allUsers` is used in Centrifugo PRO.
 - `client?: string` - Limits the call to the connection with this client ID. user is still required.
 - `session?: string` - Limits the call to the connection with this session ID. user is still required.
@@ -2448,9 +2524,9 @@ moment.
 UpdatePushStatusRequest saves the delivery or interaction status of a
 push notification to analytics. Experimental. Centrifugo PRO only.
 
-- `analyticsUid?: string` - The `analyticsUid` of the push notification (as in SendPushNotificationRequest). Required.
-- `status?: string` - The status of the push notification: delivered or interacted. Required.
-- `deviceId?: string` - The Centrifugo device ID. Required.
+- `analyticsUid: string` - The `analyticsUid` of the push notification (as in SendPushNotificationRequest). Required.
+- `status: string` - The status of the push notification: delivered or interacted. Required.
+- `deviceId: string` - The Centrifugo device ID. Required.
 - `msgId?: string` - The message ID issued by the provider.
 
 #### type `UpdatePushStatusResult`
@@ -2467,7 +2543,7 @@ Empty at the moment. Centrifugo PRO only.
 UpdateUserStatusRequest marks users as active and online now, and sets
 their state when one is given. Centrifugo PRO only.
 
-- `users?: readonly string[]` - The list of user IDs to update the status for. Required.
+- `users: readonly string[]` - The list of user IDs to update the status for. Required.
 - `state?: string` - An optional custom state to store in the user status. It can be restricted by the user_status.state_regex option.
 
 #### type `UpdateUserStatusResult`
@@ -2528,8 +2604,8 @@ Centrifugo PRO only.
 UserTopicUpdateRequest changes the topics of a user. The change is also
 applied to the user's registered devices. Centrifugo PRO only.
 
-- `user?: string` - The user ID. Required.
-- `op?: string` - The operation: add, remove or set. Required.
+- `user: string` - The user ID. Required.
+- `op: string` - The operation: add, remove or set. Required.
 - `topics?: readonly string[]` - The topics for the operation.
 
 #### type `UserTopicUpdateResult`
@@ -2547,7 +2623,7 @@ WebPushPushNotification is a notification for Web Push.
 Centrifugo PRO only.
 
 - `headers?: Record<string, string>` - Web Push HTTP headers. Recognized keys: TTL (seconds, default 4 weeks), Urgency (very-low, low, normal, high) and Topic.
-- `payload?: unknown` - The JSON payload delivered to the browser service worker. Required.
+- `payload: unknown` - The JSON payload delivered to the browser service worker. Required.
 
 </details>
 

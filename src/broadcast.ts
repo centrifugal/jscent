@@ -1,4 +1,4 @@
-import { ApiError, BroadcastFailedChannelsError, DecodeError } from './errors.ts';
+import { ApiError, BroadcastFailedChannelsError, DecodeError, errorJSON } from './errors.ts';
 import { type PublishResult, PublishResultFields } from './generated/api.ts';
 import { decode, kindOf } from './wire.ts';
 
@@ -17,7 +17,13 @@ export interface ChannelResult {
   readonly attempts: number;
 }
 
-/** The outcome of a broadcast: one entry per channel, in the order the request listed them. */
+/**
+ * The outcome of a broadcast: one entry per channel, in the order the request
+ * listed them. JSON.stringify renders it with Centrifugo's field names:
+ * `{channels, idempotency_key, attempts, replied}`, each channel as
+ * `{channel, result, error, attempts}` - result when it succeeded, error,
+ * `{code, message}`, when it failed.
+ */
 export class BroadcastResult {
   /** Every channel's outcome. */
   readonly channels: ChannelResult[];
@@ -38,8 +44,8 @@ export class BroadcastResult {
    */
   readonly replied: boolean;
 
-  /** @internal */
-  constructor(channels: ChannelResult[], idempotencyKey: string, attempts: number, replied: boolean) {
+  /** Every field as the result has it: for test doubles, say. */
+  constructor(channels: ChannelResult[], idempotencyKey = '', attempts = 1, replied = true) {
     this.channels = channels;
     this.idempotencyKey = idempotencyKey;
     this.attempts = attempts;
@@ -47,8 +53,21 @@ export class BroadcastResult {
   }
 
   /** The channels which did not get the publication, with their errors, in the order of the request. */
-  failed(): ChannelResult[] {
+  get failed(): ChannelResult[] {
     return this.channels.filter((c) => c.error !== undefined);
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      channels: this.channels.map((c) => ({
+        channel: c.channel,
+        ...(c.error === undefined ? { result: c.result ?? {} } : { error: errorJSON(c.error) }),
+        attempts: c.attempts,
+      })),
+      idempotency_key: this.idempotencyKey,
+      attempts: this.attempts,
+      replied: this.replied,
+    };
   }
 
   /** @internal The result of a broadcast which failed as a whole: every channel failed with error. */
@@ -95,7 +114,7 @@ export class BroadcastResult {
 
   /** @internal This result, or BroadcastFailedChannelsError carrying it when any channel failed. */
   check(): BroadcastResult {
-    const failed = this.failed();
+    const failed = this.failed;
     if (failed.length > 0) {
       throw new BroadcastFailedChannelsError(failed, this.channels.length, this);
     }

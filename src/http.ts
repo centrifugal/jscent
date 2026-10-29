@@ -40,7 +40,7 @@ export interface HandleInput {
   raw?: unknown;
 }
 
-/** Called with every request answered 400 or 500, and the error. */
+/** Called with every request answered 400 or 500, and the error. It must not throw. */
 export type OnError = (request: HttpRequest, error: unknown) => void;
 
 /** The parts of Node's IncomingMessage the Node adapter reads. Express's req is one. */

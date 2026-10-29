@@ -4,6 +4,9 @@
 // subscriptions are experimental in Centrifugo, and this module follows their
 // changes.
 
+import { checkKeys } from './options.ts';
+import { type Expiry, NEVER } from './token.ts';
+
 /** What sign takes. */
 export interface SignOptions {
   /** The ID of the connection's user; empty for an anonymous one. */
@@ -12,15 +15,18 @@ export interface SignOptions {
   channel: string;
   /** The keys the signature covers, exactly and in their order. */
   keys: readonly string[];
-  /** When the signature expires; unset for one which does not. */
-  expiresAt?: Date;
+  /**
+   * When the signature expires: required, as a token's expiry is - a Date, or
+   * token.NEVER for a signature which never expires.
+   */
+  expiresAt: Expiry;
 }
 
 /**
  * The signature authorizing a user to track keys in a channel until
  * expiresAt, as Centrifugo verifies it: "iat:exp:hmac", iat now and exp
- * expiresAt in Unix seconds - 0 without expiresAt, for a signature which does
- * not expire. secret is Centrifugo's shared_poll.hmac_secret_key.
+ * expiresAt in Unix seconds - 0 for NEVER, a signature which does not expire.
+ * secret is Centrifugo's shared_poll.hmac_secret_key.
  *
  * The signature covers exactly keys, in their order: a client tracking other
  * keys, or the same in another order, is refused.
@@ -39,14 +45,17 @@ export async function signAt(secret: string | Uint8Array, options: SignOptions, 
   if (s.byteLength === 0) {
     throw new TypeError('sharedpoll: empty secret');
   }
+  checkKeys(options, ['user', 'channel', 'keys', 'expiresAt'], 'sign option', (m) => new TypeError(`sharedpoll: ${m}`));
   const { user, channel, keys, expiresAt } = options;
   if (typeof user !== 'string' || typeof channel !== 'string' || !Array.isArray(keys)) {
     throw new TypeError('sharedpoll: user and channel are strings, keys an array of strings');
   }
   let exp = '0';
-  if (expiresAt !== undefined) {
+  if (expiresAt !== NEVER) {
     if (!(expiresAt instanceof Date) || Number.isNaN(expiresAt.getTime())) {
-      throw new TypeError('sharedpoll: expiresAt must be a valid Date');
+      throw new TypeError(
+        `sharedpoll: expiresAt must be a valid Date, or token.NEVER for a signature which never expires - not ${expiresAt === undefined ? 'unset' : typeof expiresAt}`,
+      );
     }
     exp = String(Math.floor(expiresAt.getTime() / 1000));
   }

@@ -254,7 +254,10 @@ function emitInterface(s: Schema, sh: Shapes, m: Message, name: string, input: b
   out += `export interface ${name} {\n`;
   for (const f of m.fields) {
     out += jsdoc(fieldDoc(s, m, f), '  ');
-    out += `  ${input ? '' : 'readonly '}${camel(f.name)}${input ? '?' : ''}: ${fieldType(sh, f, input)};\n`;
+    // A field the proto marks plainly "Required." is a required property;
+    // "Required unless ..." stays optional.
+    const optional = input && !/\bRequired\./.test(f.doc.join(' '));
+    out += `  ${input ? '' : 'readonly '}${camel(f.name)}${optional ? '?' : ''}: ${fieldType(sh, f, input)};\n`;
   }
   return `${out}}\n`;
 }

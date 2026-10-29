@@ -5,9 +5,11 @@ import {
   BadRequestError,
   BatchFailedCommandsError,
   BatchNotSentError,
+  BatchResult,
   BatchSentError,
   type BroadcastAttempt,
   BroadcastFailedChannelsError,
+  BroadcastResult,
   ClosedError,
   command,
   DecodeError,
@@ -18,7 +20,9 @@ import {
   InvalidRequestError,
   NetworkError,
   NotFoundError,
+  Pending,
   type RequestInfo,
+  rawJSON,
   retryable,
   TimeoutError,
   TooManyRequestsError,
@@ -55,6 +59,52 @@ describe('configuration', () => {
     const { Client } = await import('../../src/index.ts');
     expect(() => new Client(options as never)).toThrow(InvalidConfigError);
     expect(() => new Client(options as never)).toThrow(message);
+  });
+
+  it('requires the fields the proto marks required', () => {
+    // Type-checked, never run: tsc fails when channel is optional.
+    const typeCheck = (c: ReturnType<FakeCentrifugo['client']>) => {
+      // @ts-expect-error channel is required
+      void c.history({});
+      void c.history({ channel: 'news' });
+      // "Required unless ..." stays optional: data or b64data.
+      void c.publish({ channel: 'news', b64data: 'aGk=' });
+    };
+    expect(typeCheck).toBeTypeOf('function');
+  });
+
+  it('refuses unknown options', async () => {
+    const fake = new FakeCentrifugo();
+    expect(() => fake.client({ timeout: 1000 } as never)).toThrow(
+      new InvalidConfigError('unknown client option timeout: did you mean requestTimeout?'),
+    );
+    expect(() => fake.client({ api_key: 'k' } as never)).toThrow('did you mean apiKey?');
+    expect(() => fake.client({ autoBatch: { maxInflight: 2 } } as never)).toThrow('did you mean maxInFlight?');
+    const c = fake.client();
+    expect(await rejection(c.info({}, { timeOut: 5 } as never))).toEqual(
+      new InvalidRequestError('unknown call option timeOut: did you mean timeout?'),
+    );
+    expect(() => c.newBatch({ paralel: true } as never)).toThrow('unknown batch option paralel');
+    expect(
+      await rejection(c.broadcastWithRetry({ channels: ['a'], data: 1 }, { maxAttempt: 3 } as never)),
+    ).toBeInstanceOf(InvalidRequestError);
+    expect(await rejection(c.newBatch().send({ timeout_ms: 5 } as never))).toBeInstanceOf(InvalidRequestError);
+    expect(fake.sent).toEqual([]);
+  });
+
+  it('round-trips a JSON null payload', async () => {
+    const fake = new FakeCentrifugo((method) =>
+      method === 'history' ? { publications: [{ data: null, offset: 1 }, { offset: 2 }] } : {},
+    );
+    const c = fake.client();
+    const { publications } = await c.history({ channel: 'news', limit: 2 });
+    expect(publications[0]?.data).toBeNull();
+    expect(publications[1]?.data).toBeUndefined();
+    await c.publish({ channel: 'archive', data: publications[0]?.data });
+    expect(fake.last.body).toBe('{"channel":"archive","data":null}');
+    expect(await rejection(c.publish({ channel: 'archive', data: publications[1]?.data }))).toBeInstanceOf(
+      InvalidRequestError,
+    );
   });
 
   it('normalizes the endpoint', async () => {
@@ -297,6 +347,22 @@ describe('errors', () => {
     expect(retryable(err)).toBe(true);
   });
 
+  it('does not retry a refused TLS certificate', async () => {
+    const nodeErr = Object.assign(new Error('unable to verify the first certificate'), {
+      code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+    });
+    for (const cause of [nodeErr, new Error('invalid peer certificate: UnknownIssuer')]) {
+      const fake = new FakeCentrifugo(() => new TypeError('fetch failed', { cause }));
+      const err = await rejection(fake.client().info());
+      expect(err).toBeInstanceOf(NetworkError);
+      expect((err as NetworkError).certificate).toBe(true);
+      expect(retryable(err)).toBe(false);
+    }
+    const refused = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+    const fake = new FakeCentrifugo(() => new TypeError('fetch failed', { cause: refused }));
+    expect(retryable(await rejection(fake.client().info()))).toBe(true);
+  });
+
   it('times out, and an aborted call throws the signal reason', async () => {
     const never = (_m: string, _j: unknown, init: RequestInit) =>
       new Promise<Response>((_, reject) => init.signal?.addEventListener('abort', () => reject(init.signal?.reason)));
@@ -319,9 +385,10 @@ describe('errors', () => {
     const fake = new FakeCentrifugo();
     const c = fake.client();
     const cases: [Promise<unknown>, string][] = [
-      [c.publish({ data: 1 }), 'invalid publish request: channel is required'],
+      // Plain JS callers, without the types' required properties.
+      [c.publish({ data: 1 } as never), 'invalid publish request: channel is required'],
       [c.publish({ channel: 'a' }), 'invalid publish request: data or b64data is required'],
-      [c.broadcast({ data: 1 }), 'invalid broadcast request: channels is required'],
+      [c.broadcast({ data: 1 } as never), 'invalid broadcast request: channels is required'],
       [c.broadcast({ channels: ['a'] }), 'data or b64data is required'],
       [c.broadcast({ channels: ['a', ''], data: 1 }), 'channels[1] is empty'],
       [c.publish({ channel: 'a', data: Number.POSITIVE_INFINITY }), 'invalid publish request: data is Infinity'],
@@ -349,7 +416,7 @@ describe('broadcast', () => {
     const fake = reply([{ result: { offset: 1 } }, { result: { offset: 2 } }]);
     const res = await fake.client().broadcast({ channels: ['a', 'b'], data: 1, idempotencyKey: 'k' });
     expect(res.replied).toBe(true);
-    expect(res.failed()).toEqual([]);
+    expect(res.failed).toEqual([]);
     expect(res.channels.map((c) => c.channel)).toEqual(['a', 'b']);
     expect(res.channels[1]!.result?.offset).toBe(2);
     expect(res.idempotencyKey).toBe('k');
@@ -453,17 +520,19 @@ describe('broadcastWithRetry', () => {
     ).toBeInstanceOf(UnauthorizedError);
     expect(denied.sent.length).toBe(1);
     const flaky = new FakeCentrifugo(() => json(503, ''));
-    expect(
-      await rejection(
-        flaky.client().broadcastWithRetry(
-          { channels: ['a'], data: 1 },
-          {
-            maxAttempts: 3,
-            onAttemptError: () => 0,
-          },
-        ),
+    const failed = await rejection(
+      flaky.client().broadcastWithRetry(
+        { channels: ['a'], data: 1 },
+        {
+          maxAttempts: 3,
+          onAttemptError: () => 0,
+        },
       ),
-    ).toBeInstanceOf(HTTPError);
+    );
+    expect(failed).toBeInstanceOf(HTTPError);
+    // The key the attempts carried, for a retry which does not publish twice.
+    const keys = new Set(flaky.sent.map((r) => (r.json as { idempotency_key: string }).idempotency_key));
+    expect([...keys]).toEqual([(failed as HTTPError).idempotencyKey]);
     expect(flaky.sent.length).toBe(3);
   });
 
@@ -670,7 +739,64 @@ describe('the rest', () => {
     const cmd = command.publish({ channel: 'news', data: { text: 'hi' } });
     expect(cmd.method).toBe('publish');
     expect(cmd.payload).toBe('{"channel":"news","data":{"text":"hi"}}');
-    expect(cmd.toJSON()).toBe('{"method":"publish","payload":{"channel":"news","data":{"text":"hi"}}}');
+    expect(cmd.toString()).toBe('{"method":"publish","payload":{"channel":"news","data":{"text":"hi"}}}');
+    // JSON.stringify gives the payload as an object, also of a nested command.
+    expect(JSON.stringify(cmd)).toBe('{"method":"publish","payload":{"channel":"news","data":{"text":"hi"}}}');
+    expect(JSON.stringify({ id: 1, cmd })).toBe(
+      '{"id":1,"cmd":{"method":"publish","payload":{"channel":"news","data":{"text":"hi"}}}}',
+    );
+    // Inside a payload jscent encodes, exactly as its text.
+    const big = command.publish({ channel: 'news', data: rawJSON('{"n":12345678901234567890}') });
+    expect(command.publish({ channel: 'outbox', data: { cmd: big } }).payload).toBe(
+      '{"channel":"outbox","data":{"cmd":{"method":"publish","payload":{"channel":"news","data":{"n":12345678901234567890}}}}}',
+    );
     expect(() => command.publish({ channel: 'news' })).toThrow(InvalidRequestError);
+  });
+});
+
+describe('results as JSON', () => {
+  it('render with wire names', async () => {
+    const fake = new FakeCentrifugo((method) =>
+      method === 'presence_stats'
+        ? { num_clients: 2, num_users: 1 }
+        : method === 'history'
+          ? { publications: [{ data: { a: 1 }, offset: 3, tags: { t: 'x' } }], epoch: 'e', offset: 3 }
+          : {},
+    );
+    const c = fake.client();
+    expect(JSON.stringify(await c.presenceStats({ channel: 'news' }))).toBe('{"num_clients":2,"num_users":1}');
+    expect(JSON.stringify(await c.history({ channel: 'news' }))).toBe(
+      '{"publications":[{"data":{"a":1},"offset":3,"tags":{"t":"x"}}],"epoch":"e","offset":3}',
+    );
+  });
+
+  it('render broadcast and batch results, and doubles of them', () => {
+    const ok = { channel: 'news', result: { offset: 1, epoch: 'e' }, error: undefined, attempts: 1 };
+    const bad = {
+      channel: 'unknown:x',
+      result: undefined,
+      error: ApiError.fromCode(102, 'unknown channel'),
+      attempts: 1,
+    };
+    const down = { channel: 'chat', result: undefined, error: new NetworkError('publish: refused'), attempts: 2 };
+    const res = new BroadcastResult([ok, bad, down], 'k', 2, true);
+    expect(JSON.stringify(res)).toBe(
+      '{"channels":[{"channel":"news","result":{"offset":1,"epoch":"e"},"attempts":1},' +
+        '{"channel":"unknown:x","error":{"code":102,"message":"unknown channel"},"attempts":1},' +
+        '{"channel":"chat","error":{"message":"publish: refused"},"attempts":2}],' +
+        '"idempotency_key":"k","attempts":2,"replied":true}',
+    );
+    expect(res.failed).toEqual([bad, down]);
+    const e = new BroadcastFailedChannelsError([bad], 2, new BroadcastResult([ok, bad]));
+    expect(e.result.failed).toEqual([bad]);
+    const failed = [{ index: 1, method: 'publish', error: ApiError.fromCode(102, 'unknown channel') }];
+    expect(JSON.stringify(new BatchResult(true, failed))).toBe(
+      '{"replied":true,"failed":[{"index":1,"method":"publish","error":{"code":102,"message":"unknown channel"}}]}',
+    );
+    expect(new BatchFailedCommandsError(failed, 2, new BatchResult(true, failed)).failed).toEqual(failed);
+    expect(Pending.resolved({ offset: 1 }).result()).toEqual({ offset: 1 });
+    expect(() => Pending.resolved(undefined, ApiError.fromCode(102, 'unknown channel')).result()).toThrow(
+      UnknownChannelError,
+    );
   });
 });

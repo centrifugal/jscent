@@ -6,10 +6,11 @@ import {
   BatchSentError,
   CentError,
   DecodeError,
+  errorJSON,
   InvalidRequestError,
 } from './errors.ts';
 import { BatchMethods, METHODS } from './generated/api.ts';
-import type { CallOptions } from './request.ts';
+import { type CallOptions, checkCallOptions } from './request.ts';
 import { encodeRequest } from './validate.ts';
 import { decode } from './wire.ts';
 
@@ -27,7 +28,12 @@ export interface FailedCommand {
   readonly error: Error;
 }
 
-/** The outcome of a sent batch as a whole. Each command's own outcome is in the Pending its add returned. */
+/**
+ * The outcome of a sent batch as a whole. Each command's own outcome is in the
+ * Pending its method returned. JSON.stringify renders it as
+ * `{replied, failed}`, each failed command as `{index, method, error}`, the
+ * error as `{code, message}`.
+ */
 export class BatchResult {
   /**
    * True when Centrifugo replied to every command, the failed ones included;
@@ -36,15 +42,22 @@ export class BatchResult {
   readonly replied: boolean;
   readonly #failed: FailedCommand[];
 
-  /** @internal */
+  /** For test doubles, say. */
   constructor(replied: boolean, failed: FailedCommand[] = []) {
     this.replied = replied;
     this.#failed = failed;
   }
 
-  /** The commands which failed, with their errors, in the order they were added. */
-  failed(): FailedCommand[] {
+  /** The commands which failed, with their errors, in the order they were added - as the error's failed lists them. */
+  get failed(): FailedCommand[] {
     return [...this.#failed];
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      replied: this.replied,
+      failed: this.#failed.map((f) => ({ index: f.index, method: f.method, error: errorJSON(f.error) })),
+    };
   }
 }
 
@@ -55,6 +68,21 @@ export class Pending<T> {
   /** @internal */
   constructor(get: () => T) {
     this.#get = get;
+  }
+
+  /**
+   * A Pending of no batch, whose result() returns value or throws error: for
+   * test doubles of code which reads a batch's outcomes.
+   */
+  static resolved<T>(value: T): Pending<T>;
+  static resolved<T = never>(value: undefined, error: Error): Pending<T>;
+  static resolved<T>(value: T, error?: Error): Pending<T> {
+    return new Pending(() => {
+      if (error !== undefined) {
+        throw error;
+      }
+      return value;
+    });
   }
 
   /**
@@ -157,6 +185,7 @@ export class Batch extends BatchMethods {
     if (this.#sent) {
       throw new BatchSentError('batch already sent');
     }
+    checkCallOptions(options);
     this.#sent = true;
     try {
       if (this.#commands.length === 0) {

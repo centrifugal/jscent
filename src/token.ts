@@ -4,6 +4,7 @@
 
 import type { FilterNode, SubscribeOptionOverride } from './generated/api.ts';
 import { FilterNodeFields, SubscribeOptionOverrideFields } from './generated/api.ts';
+import { checkKeys } from './options.ts';
 import { encodePayload } from './payload.ts';
 import { encode, kindOf } from './wire.ts';
 
@@ -370,9 +371,46 @@ export interface ApiClaims {
   id?: string;
 }
 
+// The keys of the claims types, and their JWT names - which the claims are
+// not named by - for a hint.
+const COMMON_CLAIMS = ['user', 'expiresAt', 'issuedAt', 'id', 'audience', 'issuer', 'info', 'b64info'] as const;
+const CONNECTION_CLAIMS = [
+  ...COMMON_CLAIMS,
+  'connectionExpiresAt',
+  'channels',
+  'subs',
+  'meta',
+  'caps',
+  'labels',
+] as const;
+const SUBSCRIPTION_CLAIMS = [
+  ...COMMON_CLAIMS,
+  'channel',
+  'subscriptionExpiresAt',
+  'data',
+  'b64data',
+  'override',
+  'allow',
+  'serverTagsFilter',
+] as const;
+const API_CLAIMS = ['audience', 'scope', 'issuer', 'subject', 'expiresAt', 'issuedAt', 'id'] as const;
+const WIRE_NAMES: Readonly<Record<string, string>> = {
+  sub: 'user',
+  exp: 'expiresAt',
+  iat: 'issuedAt',
+  jti: 'id',
+  aud: 'audience',
+  iss: 'issuer',
+};
+
 /** A connection token with claims, signed with key. */
 export async function connection(key: Key, claims: ConnectionClaims): Promise<string> {
   const c = claims;
+  checkKeys(c, CONNECTION_CLAIMS, 'connection claim', (m) => new TypeError(`token: ${m}`), {
+    ...WIRE_NAMES,
+    expire_at: 'connectionExpiresAt',
+    expireAt: 'connectionExpiresAt',
+  });
   if (c.channels?.length && c.subs && Object.keys(c.subs).length > 0) {
     throw new TypeError('token: set channels or subs, not both: Centrifugo ignores channels when subs is set');
   }
@@ -405,6 +443,11 @@ export async function connection(key: Key, claims: ConnectionClaims): Promise<st
 /** A subscription token with claims, signed with key. */
 export async function subscription(key: Key, claims: SubscriptionClaims): Promise<string> {
   const c = claims;
+  checkKeys(c, SUBSCRIPTION_CLAIMS, 'subscription claim', (m) => new TypeError(`token: ${m}`), {
+    ...WIRE_NAMES,
+    expire_at: 'subscriptionExpiresAt',
+    expireAt: 'subscriptionExpiresAt',
+  });
   if (typeof c.channel !== 'string' || c.channel === '') {
     throw new TypeError('token: a subscription token needs a channel');
   }
@@ -434,6 +477,7 @@ export async function subscription(key: Key, claims: SubscriptionClaims): Promis
  */
 export async function api(key: Key, claims: ApiClaims): Promise<string> {
   const c = claims;
+  checkKeys(c, API_CLAIMS, 'API token claim', (m) => new TypeError(`token: ${m}`), { ...WIRE_NAMES, sub: 'subject' });
   if (key.jwk === undefined) {
     throw new TypeError(
       'token: an API token needs an RSA, ECDSA or Ed25519 key: Centrifugo PRO verifies it with the public keys of its JWKS endpoint',
@@ -539,7 +583,12 @@ export class ApiTokens {
     /** Milliseconds a token is valid: 5 minutes by default. */
     ttl?: number;
   }) {
+    checkKeys(options, ['claims', 'key', 'currentKey', 'ttl'], 'ApiTokens option', (m) => new TypeError(`token: ${m}`));
     const { claims, key, currentKey, ttl = 300_000 } = options;
+    checkKeys(claims, API_CLAIMS, 'API token claim', (m) => new TypeError(`token: ${m}`), {
+      ...WIRE_NAMES,
+      sub: 'subject',
+    });
     if ((key === undefined) === (currentKey === undefined)) {
       throw new TypeError('token: ApiTokens takes key or currentKey, one of them');
     }

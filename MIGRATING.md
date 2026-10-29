@@ -45,7 +45,7 @@ try {
   await client.broadcast({ channels, data });
 } catch (e) {
   if (!(e instanceof BroadcastFailedChannelsError)) throw e;
-  for (const ch of e.result.failed()) {
+  for (const ch of e.result.failed) {
     logger.warn(`broadcast to ${ch.channel} failed: ${ch.error?.message}`);
   }
 }

@@ -178,7 +178,7 @@ export function decode<T>(fields: Fields, v: unknown, path: string): T {
     throw new DecodeError(`${path}: expected an object, got ${kindOf(v)}`);
   }
   const src = v as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
+  const out = Object.create(protoOf(fields)) as Record<string, unknown>;
   for (const f of compile(fields)) {
     const where = `${path}.${f.wire}`;
     const item = Object.hasOwn(src, f.wire) ? src[f.wire] : undefined;
@@ -202,10 +202,61 @@ export function decode<T>(fields: Fields, v: unknown, path: string): T {
         );
       }
     } else {
-      out[f.js] = item === undefined || item === null ? zero(f) : decodeValue(f, item, where);
+      // A payload's null is JSON null, sent back as it came; absent, it is
+      // undefined.
+      out[f.js] =
+        item === null && f.kind === PAYLOAD
+          ? null
+          : item === undefined || item === null
+            ? zero(f)
+            : decodeValue(f, item, where);
     }
   }
   return out as T;
+}
+
+const protos = new WeakMap<Fields, object>();
+
+/**
+ * The prototype of decoded messages of fields: an object whose toJSON gives
+ * the message by its wire names - num_clients, not numClients - fields at
+ * their zero value left out, as JSON.stringify renders results (spec 3.7).
+ * Nested messages render through their own toJSON.
+ */
+function protoOf(fields: Fields): object {
+  const cached = protos.get(fields);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const known = compile(fields);
+  const proto: object = Object.create(Object.prototype, {
+    toJSON: {
+      value(this: Record<string, unknown>): Record<string, unknown> {
+        const out: Record<string, unknown> = {};
+        for (const f of known) {
+          const v = this[f.js];
+          if (v === undefined || (f.kind !== PAYLOAD && isZero(v))) {
+            continue;
+          }
+          out[f.wire] = v;
+        }
+        return out;
+      },
+    },
+  });
+  protos.set(fields, proto);
+  return proto;
+}
+
+function isZero(v: unknown): boolean {
+  return (
+    v === '' ||
+    v === 0 ||
+    v === 0n ||
+    v === false ||
+    (Array.isArray(v) && v.length === 0) ||
+    (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0)
+  );
 }
 
 function zero(f: Compiled): unknown {

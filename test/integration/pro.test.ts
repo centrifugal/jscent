@@ -156,7 +156,7 @@ describe('Centrifugo PRO', () => {
     const ch = unique();
     const apart = command.publish({ channel: ch, data: { n: 1 } });
     await xadd('jscent_commands', ['method', apart.method, 'payload', apart.payload]);
-    await xadd('jscent_commands', ['payload', command.publish({ channel: ch, data: { n: 2 } }).toJSON()]);
+    await xadd('jscent_commands', ['payload', command.publish({ channel: ch, data: { n: 2 } }).toString()]);
     const deadline = Date.now() + 15_000;
     for (;;) {
       const pubs = (await c.history({ channel: ch, limit: 10 })).publications;

@@ -31,9 +31,13 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
         1700000000,
       ),
     ).toBe('1700000000:1700003600:c61dbf52085a6973537e71644fa30a3bbfc29a52d7ce9f1b7618531596ce587d');
-    expect(await signAt('shared_poll_secret', { user: '', channel: 'poll:prices', keys: [] }, 1700000000)).toBe(
-      '1700000000:0:92dd64af5612afde06cad03bb63435d951e037cb55a087af05c2a1399abade0e',
-    );
+    expect(
+      await signAt(
+        'shared_poll_secret',
+        { user: '', channel: 'poll:prices', keys: [], expiresAt: token.NEVER },
+        1700000000,
+      ),
+    ).toBe('1700000000:0:92dd64af5612afde06cad03bb63435d951e037cb55a087af05c2a1399abade0e');
   });
 
   it('writes the expiries', async () => {
@@ -206,10 +210,39 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
   });
 
   it('signs shared poll keys', async () => {
-    expect(await sharedPollSign('s', { user: 'u', channel: 'c', keys: ['a'] })).toMatch(/^\d+:0:[0-9a-f]{64}$/);
-    expect(await signAt('s', { user: 'alice', channel: 'news:tech', keys: [] }, 1)).not.toBe(
-      await signAt('s', { user: 'alice:news', channel: 'tech', keys: [] }, 1),
+    const never: token.Expiry = token.NEVER;
+    expect(await sharedPollSign('s', { user: 'u', channel: 'c', keys: ['a'], expiresAt: never })).toMatch(
+      /^\d+:0:[0-9a-f]{64}$/,
     );
-    await expect(sharedPollSign('', { user: 'u', channel: 'c', keys: [] })).rejects.toThrow();
+    expect(await signAt('s', { user: 'alice', channel: 'news:tech', keys: [], expiresAt: never }, 1)).not.toBe(
+      await signAt('s', { user: 'alice:news', channel: 'tech', keys: [], expiresAt: never }, 1),
+    );
+    await expect(sharedPollSign('', { user: 'u', channel: 'c', keys: [], expiresAt: never })).rejects.toThrow();
+    // The expiry is chosen explicitly: never is spelled, a number or unset refused.
+    for (const expiresAt of [undefined, 3600, 1700000000]) {
+      await expect(sharedPollSign('s', { user: 'u', channel: 'c', keys: [], expiresAt } as never)).rejects.toThrow(
+        'token.NEVER',
+      );
+    }
+    await expect(
+      sharedPollSign('s', { user: 'u', channel: 'c', keys: [], expiresAt: never, expires_at: 1 } as never),
+    ).rejects.toThrow('unknown sign option expires_at: did you mean expiresAt?');
+  });
+
+  it('refuses unknown claims', async () => {
+    const key = token.Key.hmac('secret');
+    const exp = new Date(Date.now() + 60_000);
+    await expect(token.connection(key, { user: '42', expiresAt: exp, expire_at: 1 } as never)).rejects.toThrow(
+      'unknown connection claim expire_at: did you mean connectionExpiresAt?',
+    );
+    await expect(token.connection(key, { sub: '42', expiresAt: exp } as never)).rejects.toThrow('did you mean user?');
+    await expect(token.subscription(key, { channel: 'c', expiresAt: exp, expireAt: exp } as never)).rejects.toThrow(
+      'did you mean subscriptionExpiresAt?',
+    );
+    await expect(token.subscription(key, { channel: 'c', expiresAt: exp, b64Data: 'x' } as never)).rejects.toThrow(
+      'did you mean b64data?',
+    );
+    // An unset key is no key.
+    await token.connection(key, { user: '42', expiresAt: exp, info: undefined });
   });
 });

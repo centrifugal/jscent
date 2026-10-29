@@ -46,6 +46,10 @@ unless Centrifugo did everything asked. A field jscent does not know - a typo,
 or `skip_history` for `skipHistory` - is refused, not dropped. Create the
 client once and share it: it is safe for concurrent use.
 
+`JSON.stringify` renders a result with Centrifugo's field names -
+`num_clients`, `idempotency_key` - for a response of your own, and an error in
+a broadcast's or batch's result as `{ code, message }`.
+
 A batch and commands have the same methods as the client:
 `batch.publish({ ... })`, `command.publish({ ... })`. jscent is an ES module;
 CommonJS code loads it with `require('jscent')` on Node.js 22.12 or newer.
@@ -55,7 +59,8 @@ CommonJS code loads it with `require('jscent')` on Node.js 22.12 or newer.
 `data`, `info`, `meta` and the other payloads are JSON values, given as the
 JavaScript values they decode to - objects, arrays, strings, numbers, booleans,
 `null` - and returned the same way, as `JSON.parse` gives them: a payload from
-a reply sent back unchanged is the same JSON value.
+a reply sent back unchanged is the same JSON value. `null` is JSON null; a
+payload left out is `undefined`.
 
 A string is a JSON string: `data: 'hi'` publishes `"hi"`. (Unlike Pusher, whose
 event data is a string: Centrifugo's data is any JSON value.) JSON you already
@@ -192,7 +197,7 @@ try {
   await client.broadcast(request);
 } catch (e) {
   if (!(e instanceof BroadcastFailedChannelsError)) throw e;
-  logger.warn('broadcast failed in some channels', e.result.failed());
+  logger.warn('broadcast failed in some channels', e.result.failed);
 }
 ```
 
@@ -300,7 +305,8 @@ Your `fetch` is called with each request's credentials and headers; jscent
 never changes it. Tracing comes from it: on Node.js,
 `@opentelemetry/instrumentation-undici` traces the global `fetch`. `onRequest`
 is told of every request - method, commands and how many failed, duration,
-status, error - for metrics without a dependency of jscent's.
+status, error - for metrics without a dependency of jscent's. It must not
+throw.
 
 ## Testing your code
 
@@ -324,8 +330,27 @@ expect(sent[0]!.url).toBe('http://centrifugo.test/api/publish');
 expect(sent[0]!.body.idempotency_key).toBe('order-42-paid');
 ```
 
-For an error, answer as Centrifugo does:
-`Response.json({ error: { code: 102, message: 'unknown channel' } })`.
+Answer as Centrifugo does, at `/api/<method>`:
+
+- a method: `{ result: {...} }`, or an error: `{ error: { code: 102, message: 'unknown channel' } }`;
+- a broadcast, one response per channel, in order:
+  `{ result: { responses: [{ result: { offset: 1 } }, { error: { code: 102, message: 'unknown channel' } }] } }`;
+- a batch, one reply per command, in order:
+  `{ replies: [{ publish: { offset: 1 } }, { error: { code: 102, message: 'unknown channel' } }] }`.
+
+A test double of your own returns jscent's results and throws its errors,
+partial failures included:
+
+```ts
+const ok = { channel: 'news', result: { offset: 1, epoch: '' }, error: undefined, attempts: 1 };
+const bad = { channel: 'unknown:x', result: undefined, error: ApiError.fromCode(102, 'unknown channel'), attempts: 1 };
+throw new BroadcastFailedChannelsError([bad], 2, new BroadcastResult([ok, bad]));
+```
+
+and for a batch, `Pending.resolved(result)` or
+`Pending.resolved(undefined, error)` as each command's outcome, with
+`new BatchFailedCommandsError(failed, total, new BatchResult(true, failed))`
+of `{ index, method, error }` failures.
 
 ## Shutdown
 
@@ -396,8 +421,10 @@ const subscribeHandler = new SubscribeHandler(
 
 Return a result to accept the request, throw `ProxyError` to reject it with an
 error the client receives, or `Disconnect` to close the client's connection;
-any other error fails the request, and goes to `onError` to be logged. Keep
-proxy endpoints reachable by Centrifugo only: whoever can call them can claim
+any other error fails the request, and goes to `onError` to be logged -
+`onError` itself must not throw. Error codes are in [400, 1999], disconnect
+codes in [4000, 4999], and a disconnect reason is at most 32 bytes. Keep proxy
+endpoints reachable by Centrifugo only: whoever can call them can claim
 to be any user.
 
 ## Tokens
@@ -519,8 +546,10 @@ follows their changes.
 `command.publish({ ... })` - and a function like it for every API method -
 checks a request as a client would and encodes it, for
 Centrifugo's [async consumers](https://centrifugal.dev/docs/server/consumers):
-its `method` and `payload` for an outbox table, or `toJSON()` for a Kafka
-message.
+its `method` and `payload` for an outbox table - `payload` is JSON text, for a
+`jsonb` column - or `String(cmd)` for a Kafka message. `JSON.stringify` of a
+command, also inside another value, gives the same message, `payload` an
+object.
 
 ```ts
 const cmd = command.publish({ channel: 'news', data: { text: 'hi' } });
