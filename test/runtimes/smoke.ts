@@ -60,7 +60,9 @@ check(
   'HS256 vector',
 );
 check(
-  /^\d+:0:[0-9a-f]{64}$/.test(await sign('shared_poll_secret', { user: '', channel: 'poll:prices', keys: [], expiresAt: token.NEVER })),
+  /^\d+:0:[0-9a-f]{64}$/.test(
+    await sign('shared_poll_secret', { user: '', channel: 'poll:prices', keys: [], expiresAt: token.NEVER }),
+  ),
   'shared poll signature',
 );
 const ed = (await token.Key.ed25519(new Uint8Array(32).fill(1))).withKeyId('e');
