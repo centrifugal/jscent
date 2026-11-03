@@ -167,15 +167,15 @@ export const BroadcastRequestFields: Fields = [
  */
 export interface FilterNode {
   /**
-   * The logical operation of a non-leaf node: "and", "or" or "not".
-   * Empty for a leaf node.
+   * The logical operation of a non-leaf node. Empty for a leaf node.
+   * One of: and, or, not.
    */
   op?: string;
   /** The label key a leaf node compares. */
   key?: string;
   /**
-   * The comparison of a leaf node: "eq", "neq", "in", "nin", "ex",
-   * "nex", "sw", "ew", "ct", "gt", "gte", "lt" or "lte".
+   * The comparison of a leaf node. One of: eq, neq, in, nin, ex, nex,
+   * sw, ew, ct, gt, gte, lt, lte.
    */
   cmp?: string;
   /** The value to compare with, for single-value comparisons. */
@@ -1151,8 +1151,8 @@ export interface DeviceRegisterRequest {
    */
   id?: string;
   /**
-   * The provider of the device token: fcm, hms, apns or
-   * webpush. Required.
+   * The provider of the device token. Required. One of: fcm,
+   * hms, apns, webpush.
    */
   provider: string;
   /**
@@ -1160,7 +1160,7 @@ export interface DeviceRegisterRequest {
    * PushSubscription serialized as a JSON string. Required.
    */
   token: string;
-  /** The device platform: ios, android or web. Required. */
+  /** The device platform. Required. One of: ios, android, web. */
   platform: string;
   /** The user associated with the device. */
   user?: string;
@@ -1290,7 +1290,7 @@ export const DeviceMetaUpdateFields: Fields = [['meta', STRING, MAP]];
 
 /** DeviceTopicsUpdate changes the topics of devices. Centrifugo PRO only. */
 export interface DeviceTopicsUpdate {
-  /** The operation: add, remove or set. Required. */
+  /** The operation. Required. One of: add, remove, set. */
   op: string;
   /** The topics for the operation. */
   topics?: readonly string[];
@@ -1478,7 +1478,7 @@ export const UserTopicListRequestFields: Fields = [
 export interface DeviceTopicUpdateRequest {
   /** The ID of the device. Required. */
   deviceId: string;
-  /** The operation: add, remove or set. Required. */
+  /** The operation. Required. One of: add, remove, set. */
   op: string;
   /** The topics for the operation. */
   topics?: readonly string[];
@@ -1508,7 +1508,7 @@ export interface UserTopicUpdateRequest {
    * device - anonymous ones included - gets on its next `deviceRegister`.
    */
   user: string;
-  /** The operation: add, remove or set. Required. */
+  /** The operation. Required. One of: add, remove, set. */
   op: string;
   /** The topics for the operation. */
   topics?: readonly string[];
@@ -1800,6 +1800,7 @@ export interface PushNotification {
   /**
    * The Unix time in seconds when Centrifugo stops trying to
    * send the notification. Not related to the providers' TTL fields.
+   * Required when the request sets `limitStrategy`.
    */
   expireAt?: number;
 }
@@ -1898,7 +1899,8 @@ export interface SendPushNotificationRequest {
   /**
    * Sets time constraints and rate limits. Only applies
    * with a filter recipient; devices are then processed one by one
-   * instead of in batches.
+   * instead of in batches. Needs notification.expire_at: a push the limits
+   * hold back is not tried forever.
    */
   limitStrategy?: PushLimitStrategy;
   /**
@@ -2058,8 +2060,8 @@ export interface UpdatePushStatusRequest {
    */
   analyticsUid: string;
   /**
-   * The status of the push notification: delivered or
-   * interacted. Required.
+   * The status of the push notification. Required. One of:
+   * delivered, interacted.
    */
   status: string;
   /** The Centrifugo device ID. Required. */
@@ -2152,9 +2154,9 @@ export interface MapPublishRequest {
   /** Currently not used by the server API. */
   score?: number;
   /**
-   * Makes the publish conditional: "if_new" writes only if the
-   * key does not exist, "if_exists" only if it exists. Empty always
-   * writes.
+   * Makes the publish conditional: if_new writes only if the key
+   * does not exist, if_exists only if it exists. Empty always writes.
+   * One of: if_new, if_exists.
    */
   keyMode?: string;
 }

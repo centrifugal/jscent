@@ -1800,9 +1800,9 @@ DeviceRegisterRequest registers a device for push notifications, or
 updates a registered one. Centrifugo PRO only.
 
 - `id?: string` - The device ID. Omit it on first registration: Centrifugo generates one and returns it. Pass the stored value to update the device.
-- `provider: string` - The provider of the device token: fcm, hms, apns or webpush. Required.
+- `provider: string` - The provider of the device token. Required. One of: fcm, hms, apns, webpush.
 - `token: string` - The push token of the device. For webpush, it is the browser PushSubscription serialized as a JSON string. Required.
-- `platform: string` - The device platform: ios, android or web. Required.
+- `platform: string` - The device platform. Required. One of: ios, android, web.
 - `user?: string` - The user associated with the device.
 - `meta?: Record<string, string>` - Additional custom metadata of the device.
 - `topics?: readonly string[]` - The full list of the device's topic subscriptions, replacing the previous one. The user's topics are attached automatically.
@@ -1882,7 +1882,7 @@ Centrifugo PRO only.
 
 DeviceTopicsUpdate changes the topics of devices. Centrifugo PRO only.
 
-- `op: string` - The operation: add, remove or set. Required.
+- `op: string` - The operation. Required. One of: add, remove, set.
 - `topics?: readonly string[]` - The topics for the operation.
 
 #### interface `DeviceTopicUpdateRequest`
@@ -1892,7 +1892,7 @@ list is what decides who gets a push sent to a topic.
 Centrifugo PRO only.
 
 - `deviceId: string` - The ID of the device. Required.
-- `op: string` - The operation: add, remove or set. Required.
+- `op: string` - The operation. Required. One of: add, remove, set.
 - `topics?: readonly string[]` - The topics for the operation.
 - `user?: string` - An optional ownership guard: the update is applied only if the device currently belongs to this user. Otherwise the call fails with a conflict error (or not found if there is no such device).
 
@@ -1975,9 +1975,9 @@ vals) or a logical operation (op) over child nodes.
 Centrifugo PRO only: defined here for protocol-surface consistency,
 Centrifugo OSS parses it but ignores it.
 
-- `op?: string` - The logical operation of a non-leaf node: "and", "or" or "not". Empty for a leaf node.
+- `op?: string` - The logical operation of a non-leaf node. Empty for a leaf node. One of: and, or, not.
 - `key?: string` - The label key a leaf node compares.
-- `cmp?: string` - The comparison of a leaf node: "eq", "neq", "in", "nin", "ex", "nex", "sw", "ew", "ct", "gt", "gte", "lt" or "lte".
+- `cmp?: string` - The comparison of a leaf node. One of: eq, neq, in, nin, ex, nex, sw, ew, ct, gt, gte, lt, lte.
 - `val?: string` - The value to compare with, for single-value comparisons.
 - `vals?: readonly string[]` - The values to compare with, for "in" and "nin".
 - `nodes?: readonly FilterNode[]` - The child nodes of a logical operation.
@@ -2111,7 +2111,7 @@ MapPublishRequest publishes or updates a key in a map channel.
 - `version?: number` - A per-key version: publications with a version not higher than the key's current one are suppressed.
 - `versionEpoch?: string` - Scopes version. A different epoch resets version comparison.
 - `score?: number` - Currently not used by the server API.
-- `keyMode?: string` - Makes the publish conditional: "if_new" writes only if the key does not exist, "if_exists" only if it exists. Empty always writes.
+- `keyMode?: string` - Makes the publish conditional: if_new writes only if the key does not exist, if_exists only if it exists. Empty always writes. One of: if_new, if_exists.
 
 #### interface `MapPublishResult`
 
@@ -2302,7 +2302,7 @@ Centrifugo PRO only.
 - `hms?: HmsPushNotification` - The notification for HMS.
 - `apns?: ApnsPushNotification` - The notification for APNs.
 - `webpush?: WebPushPushNotification` - The notification for Web Push.
-- `expireAt?: number` - The Unix time in seconds when Centrifugo stops trying to send the notification. Not related to the providers' TTL fields.
+- `expireAt?: number` - The Unix time in seconds when Centrifugo stops trying to send the notification. Not related to the providers' TTL fields. Required when the request sets `limitStrategy`.
 
 #### interface `PushRateLimitStrategy`
 
@@ -2395,7 +2395,7 @@ Centrifugo PRO only.
 - `uid?: string` - A unique identifier of the request, can be used to cancel the push. UUID v4 is recommended; different requests must use different uids.
 - `sendAt?: number` - The Unix time in seconds when to send the notification. If not set, the notification is sent immediately.
 - `optimizeForReliability?: boolean` - Makes processing heavier, but tolerates edge cases, like not losing inflight pushes when the queue is briefly unavailable.
-- `limitStrategy?: PushLimitStrategy` - Sets time constraints and rate limits. Only applies with a filter recipient; devices are then processed one by one instead of in batches.
+- `limitStrategy?: PushLimitStrategy` - Sets time constraints and rate limits. Only applies with a filter recipient; devices are then processed one by one instead of in batches. Needs notification.expire_at: a push the limits hold back is not tried forever.
 - `analyticsUid?: string` - The identifier for push notification analytics. If not set, uid is used.
 - `localizations?: Record<string, PushLocalization>` - Optional per language/locale localizations. Setting them enables templating.
 - `useTemplating?: boolean` - Enables templating of the notification. Only works with a filter recipient.
@@ -2525,7 +2525,7 @@ UpdatePushStatusRequest saves the delivery or interaction status of a
 push notification to analytics. Experimental. Centrifugo PRO only.
 
 - `analyticsUid: string` - The `analyticsUid` of the push notification (as in SendPushNotificationRequest). Required.
-- `status: string` - The status of the push notification: delivered or interacted. Required.
+- `status: string` - The status of the push notification. Required. One of: delivered, interacted.
 - `deviceId: string` - The Centrifugo device ID. Required.
 - `msgId?: string` - The message ID issued by the provider.
 
@@ -2605,7 +2605,7 @@ UserTopicUpdateRequest changes the topics of a user. The change is also
 applied to the user's registered devices. Centrifugo PRO only.
 
 - `user: string` - The user ID. Required. "" updates the global binding, which every device - anonymous ones included - gets on its next `deviceRegister`.
-- `op: string` - The operation: add, remove or set. Required.
+- `op: string` - The operation. Required. One of: add, remove, set.
 - `topics?: readonly string[]` - The topics for the operation.
 
 #### type `UserTopicUpdateResult`
@@ -2638,7 +2638,7 @@ ChannelEvent is a change of a channel's state.
 
 - `readonly timeMs: number` - When it happened, in Unix milliseconds.
 - `readonly channel: string` - The channel it happened in.
-- `readonly type: string` - "occupied" when the channel got its first subscriber, "vacated" when it lost its last one. More types may come; the field is a string, not an enum, for JSON interoperability.
+- `readonly type: string` - Occupied when the channel got its first subscriber, vacated when it lost its last one. More types may come; the field is a string, not an enum, for JSON interoperability. One of: occupied, vacated.
 
 #### interface `ChannelsCapability`
 
@@ -2647,8 +2647,8 @@ operation in a channel when any of its capabilities both allows the
 operation and matches the channel. Centrifugo PRO only.
 
 - `channels?: readonly string[]` - The channels, or channel patterns, it applies to.
-- `allow?: readonly string[]` - The operations it grants: "sub" (subscribe), "pub" (publish), "hst" (history) and "prs" (presence).
-- `match?: string` - How channels are matched: empty for exact names, "wildcard" or "regex".
+- `allow?: readonly string[]` - The operations it grants: sub is subscribe, pub publish, hst history, prs presence. One of: sub, pub, hst, prs.
+- `match?: string` - How channels are matched: empty for exact names. One of: wildcard, regex.
 
 #### interface `ConnectRequest`
 
@@ -2656,8 +2656,8 @@ ConnectRequest is sent when a client connects.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport: "websocket", "sse", "uni_sse" and the like.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly data: unknown` - The custom data the client sent with its connect command, if any.
 - `readonly b64data: string` - Data in base64, sent instead of data in binary encoding mode.
 - `readonly name: string` - The client's name, if it sent one.
@@ -2679,6 +2679,7 @@ ConnectResult accepts the connection.
 - `meta?: unknown` - Custom data attached to the connection, as JSON. It is never sent to the client; proxies with include_connection_meta receive it.
 - `caps?: readonly ChannelsCapability[]` - Capabilities granting the connection operations in channels. Centrifugo PRO only.
 - `labels?: Record<string, string>` - PRO only — client labels attached to the centrifuge.Client by Centrifugo PRO. Parsed by OSS but not used (OSS does not populate centrifuge.ConnectReply.Labels).
+- `profile?: string` - Assigns the connection to a dictionary compression profile, as the profile claim of a connection token does: it overrides the profile the client declared. Centrifugo PRO only.
 
 #### interface `FilterNode`
 
@@ -2686,9 +2687,9 @@ FilterNode is a node of a publication tags filter expression. A leaf node
 compares one tag: it sets key, cmp and val or vals, and leaves op empty. A
 logical node combines its nodes: it sets op and nodes only.
 
-- `op?: string` - The logical operation: "and", "or" or "not". Empty for a leaf node.
+- `op?: string` - The logical operation. Empty for a leaf node. One of: and, or, not.
 - `key?: string` - The tag a leaf node compares.
-- `cmp?: string` - The comparison of a leaf node: "eq", "neq", "in", "nin", "ex" (exists), "nex" (does not exist), "sw" (starts with), "ew" (ends with), "ct" (contains), "gt", "gte", "lt" or "lte".
+- `cmp?: string` - The comparison of a leaf node: ex is exists, nex does not exist, sw starts with, ew ends with, ct contains. One of: eq, neq, in, nin, ex, nex, sw, ew, ct, gt, gte, lt, lte.
 - `val?: string` - The value most comparisons compare the tag with.
 - `vals?: readonly string[]` - The values "in" and "nin" compare the tag with.
 - `nodes?: readonly FilterNode[]` - The operands of a logical node.
@@ -2699,8 +2700,8 @@ MapPublishRequest is sent when a client publishes a key into a map channel.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly channel: string` - The map channel the client publishes into.
 - `readonly key: string` - The key the client publishes, empty if it sent none.
@@ -2719,7 +2720,7 @@ unset keep what the client sent, or the defaults.
 - `b64data?: string` - Data in base64, for binary data.
 - `tags?: Record<string, string>` - Attached to the publication: clients cannot send tags, so this is where server-side tag filters get their tags from.
 - `score?: number` - Not used by Centrifugo yet.
-- `keyMode?: string` - Makes the publication conditional: "if_new" publishes only a key which does not exist yet, "if_exists" only one which does.
+- `keyMode?: string` - Makes the publication conditional: if_new publishes only a key which does not exist yet, if_exists only one which does. One of: if_new, if_exists.
 - `streamData?: unknown` - Not used by Centrifugo yet.
 - `b64streamData?: string` - Not used by Centrifugo yet.
 - `idempotencyKey?: string` - Makes the publication idempotent: another one with the same key within the broker's idempotency window is not published.
@@ -2733,8 +2734,8 @@ MapRemoveRequest is sent when a client removes a key from a map channel.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly channel: string` - The map channel the client removes the key from.
 - `readonly key: string` - The key the client removes.
@@ -2785,8 +2786,8 @@ PublishRequest is sent when a client publishes into a channel.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly channel: string` - The channel the client publishes into.
 - `readonly data: unknown` - The data the client publishes.
@@ -2814,8 +2815,8 @@ RefreshRequest is sent when a connection is about to expire.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly meta: unknown` - The connection's meta, when the proxy has include_connection_meta.
 - `readonly labels: Record<string, string>` - PRO only — connection labels attached to the originating centrifuge.Client. Centrifugo PRO always populates this from Client.Labels() (no opt-in toggle).
@@ -2837,8 +2838,8 @@ RPCRequest is sent when a client makes an RPC call.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly method: string` - The method the client calls, empty if it named none.
 - `readonly data: unknown` - The data the client sent with the call.
@@ -2892,8 +2893,8 @@ SubRefreshRequest is sent when a subscription is about to expire.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly channel: string` - The channel whose subscription is about to expire.
 - `readonly meta: unknown` - The connection's meta, when the proxy has include_connection_meta.
@@ -2940,8 +2941,8 @@ SubscribeRequest is sent when a client subscribes to a channel.
 
 - `readonly client: string` - The unique ID Centrifugo gave the connection.
 - `readonly transport: string` - The connection's transport.
-- `readonly protocol: string` - The client protocol: "json" or "protobuf".
-- `readonly encoding: string` - "binary" when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and "json" otherwise.
+- `readonly protocol: string` - The client protocol. One of: json, protobuf.
+- `readonly encoding: string` - Binary when the proxy has binary_encoding enabled, so that payloads come in the b64 fields, and json otherwise. One of: json, binary.
 - `readonly user: string` - The connection's user ID.
 - `readonly channel: string` - The channel the client subscribes to.
 - `readonly token: string` - The subscription token the client sent for the channel, if any.
@@ -2960,7 +2961,7 @@ SubscribeResult accepts the subscription.
 - `data?: unknown` - Custom data sent to the client in the subscribe reply.
 - `b64data?: string` - Data in base64, for binary data.
 - `override?: SubscribeOptionOverride` - Overrides channel options of the namespace for this subscription.
-- `allow?: readonly string[]` - Capabilities granted in the channel for this subscription: "sub", "pub", "hst" and "prs". Centrifugo PRO only.
+- `allow?: readonly string[]` - Capabilities granted in the channel for this subscription. Centrifugo PRO only. One of: sub, pub, hst, prs.
 - `serverTagsFilter?: FilterNode` - Makes the subscription receive only publications whose tags match it. Centrifugo PRO only.
 
 </details>

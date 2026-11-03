@@ -24,14 +24,14 @@ void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, SI
  * logical node combines its nodes: it sets op and nodes only.
  */
 export interface FilterNode {
-  /** The logical operation: "and", "or" or "not". Empty for a leaf node. */
+  /** The logical operation. Empty for a leaf node. One of: and, or, not. */
   op?: string;
   /** The tag a leaf node compares. */
   key?: string;
   /**
-   * The comparison of a leaf node: "eq", "neq", "in", "nin", "ex"
-   * (exists), "nex" (does not exist), "sw" (starts with), "ew" (ends with), "ct"
-   * (contains), "gt", "gte", "lt" or "lte".
+   * The comparison of a leaf node: ex is exists, nex does not exist,
+   * sw starts with, ew ends with, ct contains. One of: eq, neq, in, nin, ex,
+   * nex, sw, ew, ct, gt, gte, lt, lte.
    */
   cmp?: string;
   /** The value most comparisons compare the tag with. */
@@ -61,11 +61,12 @@ export interface ConnectRequest {
    * the like.
    */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The custom data the client sent with its connect command, if any. */
@@ -202,6 +203,12 @@ export interface ConnectResult {
    * Parsed by OSS but not used (OSS does not populate centrifuge.ConnectReply.Labels).
    */
   labels?: Record<string, string>;
+  /**
+   * Assigns the connection to a dictionary compression profile, as the
+   * profile claim of a connection token does: it overrides the profile the
+   * client declared. Centrifugo PRO only.
+   */
+  profile?: string;
 }
 
 /** @internal */
@@ -217,6 +224,7 @@ export const ConnectResultFields: Fields = [
   ['meta', PAYLOAD],
   ['caps', MESSAGE, LIST, () => ChannelsCapabilityFields],
   ['labels', STRING, MAP],
+  ['profile', STRING],
 ];
 
 /**
@@ -228,13 +236,13 @@ export interface ChannelsCapability {
   /** The channels, or channel patterns, it applies to. */
   channels?: readonly string[];
   /**
-   * The operations it grants: "sub" (subscribe), "pub" (publish),
-   * "hst" (history) and "prs" (presence).
+   * The operations it grants: sub is subscribe, pub publish, hst
+   * history, prs presence. One of: sub, pub, hst, prs.
    */
   allow?: readonly string[];
   /**
-   * How channels are matched: empty for exact names, "wildcard" or
-   * "regex".
+   * How channels are matched: empty for exact names. One of:
+   * wildcard, regex.
    */
   match?: string;
 }
@@ -252,11 +260,12 @@ export interface RefreshRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -313,11 +322,12 @@ export interface SubscribeRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -409,8 +419,8 @@ export interface SubscribeResult {
    */
   override?: SubscribeOptionOverride;
   /**
-   * Capabilities granted in the channel for this subscription:
-   * "sub", "pub", "hst" and "prs". Centrifugo PRO only.
+   * Capabilities granted in the channel for this subscription.
+   * Centrifugo PRO only. One of: sub, pub, hst, prs.
    */
   allow?: readonly string[];
   /**
@@ -438,11 +448,12 @@ export interface PublishRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -533,11 +544,12 @@ export interface MapPublishRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -596,8 +608,9 @@ export interface MapPublishResult {
   /** Not used by Centrifugo yet. */
   score?: number;
   /**
-   * Makes the publication conditional: "if_new" publishes only a key
-   * which does not exist yet, "if_exists" only one which does.
+   * Makes the publication conditional: if_new publishes only a key
+   * which does not exist yet, if_exists only one which does.
+   * One of: if_new, if_exists.
    */
   keyMode?: string;
   /** Not used by Centrifugo yet. */
@@ -642,11 +655,12 @@ export interface MapRemoveRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -709,11 +723,12 @@ export interface RPCRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -767,11 +782,12 @@ export interface SubRefreshRequest {
   readonly client: string;
   /** The connection's transport. */
   readonly transport: string;
-  /** The client protocol: "json" or "protobuf". */
+  /** The client protocol. One of: json, protobuf. */
   readonly protocol: string;
   /**
-   * "binary" when the proxy has binary_encoding enabled, so that
-   * payloads come in the b64 fields, and "json" otherwise.
+   * Binary when the proxy has binary_encoding enabled, so that
+   * payloads come in the b64 fields, and json otherwise.
+   * One of: json, binary.
    */
   readonly encoding: string;
   /** The connection's user ID. */
@@ -872,9 +888,9 @@ export interface ChannelEvent {
   /** The channel it happened in. */
   readonly channel: string;
   /**
-   * "occupied" when the channel got its first subscriber, "vacated"
+   * Occupied when the channel got its first subscriber, vacated
    * when it lost its last one. More types may come; the field is a string,
-   * not an enum, for JSON interoperability.
+   * not an enum, for JSON interoperability. One of: occupied, vacated.
    */
   readonly type: string;
 }

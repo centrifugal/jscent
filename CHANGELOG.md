@@ -15,3 +15,5 @@ for Centrifugo v6. Migrating from jscent 0.2: see [MIGRATING.md](MIGRATING.md).
 - `command.publish(...)` and the like for Centrifugo's async consumers - `JSON.stringify` gives the payload as an object, `String(cmd)` the exact text; `jscent/sharedpoll` for shared poll signatures, the expiry required: a `Date`, or `token.NEVER`.
 - Fields the protos mark required are required properties; unknown keys of options and token claims are refused, with a hint. `JSON.stringify` renders results with Centrifugo's field names, errors in them as `{code, message}`; `result.failed` is a getter. A payload's JSON `null` stays `null`.
 - TLS certificate errors are not retryable. Any `fetch` fits the option without a cast. `Pending.resolved` and the public constructors of results and partial-failure errors make test doubles.
+
+**Before releasing:** `proto/api.proto` and `proto/proxy.proto` are from Centrifugo's `master` (centrifugal/centrifugo#1308, #1309, #1310), for the "One of:" sentences spec 0.3 generates constants from and `ConnectResult.profile`: sync them again from the first Centrifugo tag holding them (`CENTRIFUGO_REF=vX.Y.Z npm run sync-proto`).
