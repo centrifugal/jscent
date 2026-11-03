@@ -53,5 +53,5 @@ export {
   type OnError,
 } from './http.ts';
 export { RawJSON, rawJSON } from './payload.ts';
-export type { CallOptions } from './request.ts';
+export type { CallOptions, PageOptions } from './request.ts';
 export { type BroadcastAttempt, exponentialBackoff, wait } from './retry.ts';

@@ -115,11 +115,11 @@ Deletes the status of users. Centrifugo PRO only.
 Returns a paginated list of registered devices.
 Centrifugo PRO only.
 
-#### `deviceListAll(request?: DeviceListRequest, options?: CallOptions): AsyncGenerator<Device, void, undefined>`
+#### `deviceListAll(request?: DeviceListRequest, options?: PageOptions): AsyncGenerator<Device, void, undefined>`
 
 Every device the request selects, a page at a time, each page read when
-the iteration reaches it - a call of deviceList with `options`, its
-timeout bounding each page: `limit` is the page size, the server's
+the iteration reaches it - a call of deviceList, `pageTimeout` - or
+requestTimeout - bounding it: `limit` is the page size, the server's
 default when unset. Leaving the loop early reads no further page. A
 device registered or removed while iterating may or may not be seen.
 Centrifugo PRO only.
@@ -145,7 +145,7 @@ Centrifugo PRO only.
 Returns a paginated list of device topic
 subscriptions. Centrifugo PRO only.
 
-#### `deviceTopicListAll(request?: DeviceTopicListRequest, options?: CallOptions): AsyncGenerator<DeviceTopic, void, undefined>`
+#### `deviceTopicListAll(request?: DeviceTopicListRequest, options?: PageOptions): AsyncGenerator<DeviceTopic, void, undefined>`
 
 Every device topic the request selects, a page at a time, as
 deviceListAll reads devices. Centrifugo PRO only.
@@ -174,13 +174,13 @@ Returns the status of users. Centrifugo PRO only.
 Returns publications from the history of a channel.
 History must be enabled for the channel.
 
-#### `historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<HistoryItem, void, undefined>`
+#### `historyAll(request: HistoryRequest, options?: PageOptions): AsyncGenerator<HistoryItem, void, undefined>`
 
 Every publication of a channel's history, oldest first, as a HistoryItem
 giving its position, a page of
 `limit` at a time: from `since` when it is set, from the start of what the
 channel keeps otherwise. A page is read when the iteration reaches it - a
-call of history with `options`, its timeout bounding each page - and the
+call of history, `pageTimeout` - or requestTimeout - bounding it - and the
 iteration ends after a page shorter than `limit`, or with the error of a
 page. Leaving the loop early reads no further page.
 
@@ -229,11 +229,11 @@ Publishes or updates a key in a map channel.
 Reads the current state of a map channel, with
 optional pagination.
 
-#### `mapReadStateAll(request: MapReadStateRequest, options?: CallOptions): AsyncGenerator<MapStateItem, void, undefined>`
+#### `mapReadStateAll(request: MapReadStateRequest, options?: PageOptions): AsyncGenerator<MapStateItem, void, undefined>`
 
 Every entry of a map channel's state, a page at a time, each page read
-when the iteration reaches it - a call of mapReadState with `options`, its
-timeout bounding each page: `limit` is the page size. Every page after the
+when the iteration reaches it - a call of mapReadState, `pageTimeout` - or
+requestTimeout - bounding it: `limit` is the page size. Every page after the
 first is read at the first one's revision - its position, as
 revisionOffset and revisionEpoch, unless the request sets them - so that
 a state reset between pages fails with UnrecoverablePositionError instead
@@ -331,7 +331,7 @@ their state when one is given. Centrifugo PRO only.
 Returns a paginated list of user topic
 subscriptions. Centrifugo PRO only.
 
-#### `userTopicListAll(request?: UserTopicListRequest, options?: CallOptions): AsyncGenerator<UserTopic, void, undefined>`
+#### `userTopicListAll(request?: UserTopicListRequest, options?: PageOptions): AsyncGenerator<UserTopic, void, undefined>`
 
 Every user topic the request selects, a page at a time, as deviceListAll
 reads devices. Centrifugo PRO only.
@@ -895,6 +895,13 @@ type MapStateItem = MapEntry & {
 An entry mapReadStateAll read, with the position of the state it was read
 at: following the state with mapReadStream from it gets every change made
 since. Its fields are the entry's: `item.key`, `item.data`.
+
+### interface `PageOptions`
+
+The options of a paging iterator: historyAll, deviceListAll and the rest.
+
+- `pageTimeout?: number` - Milliseconds bounding each page's request, replacing requestTimeout for it: requestTimeout when unset. Zero or less is refused with InvalidRequestError. Nothing bounds the whole iteration but the loop - and the signal.
+- `signal?: AbortSignal` - Ends the iteration: the page in flight, and every later one, throw the signal's reason.
 
 ### `USER_AGENT`
 

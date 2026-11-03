@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, BroadcastResult, InternalError, InvalidRequestError } from '../../src/index.ts';
+import { ApiError, BroadcastResult, InternalError, InvalidRequestError, TimeoutError } from '../../src/index.ts';
 import { FakeCentrifugo, json } from './fake.ts';
 
 /**
@@ -8,7 +8,7 @@ import { FakeCentrifugo, json } from './fake.ts';
  */
 function paged(n: number, failAt = 0): FakeCentrifugo {
   const fake: FakeCentrifugo = new FakeCentrifugo((method, req) => {
-    if (fake.sent.length === failAt) {
+    if (failAt > 0 && fake.sent.length === failAt) {
       return json(200, { error: { code: 100, message: 'internal server error' } });
     }
     const limit = req.limit as number;
@@ -155,7 +155,7 @@ describe('pages', () => {
     ]);
   });
 
-  it("gives each page the call's options: its timeout per page, its signal", async () => {
+  it('ends the iteration with its signal', async () => {
     const fake = paged(7);
     const c = fake.client();
     const ctl = new AbortController();
@@ -163,7 +163,7 @@ describe('pages', () => {
     const seen: number[] = [];
     await expect(
       (async () => {
-        for await (const pub of c.historyAll({ channel: 'c', limit: 3 }, { signal: ctl.signal, timeout: 1000 })) {
+        for await (const pub of c.historyAll({ channel: 'c', limit: 3 }, { signal: ctl.signal, pageTimeout: 1000 })) {
           seen.push(pub.offset);
           if (pub.offset === 3) {
             ctl.abort(reason);
@@ -173,6 +173,62 @@ describe('pages', () => {
     ).rejects.toBe(reason);
     expect(seen).toEqual([1, 2, 3]);
     expect(fake.sent.length).toBe(1);
+  });
+
+  it('bounds each page by pageTimeout, replacing requestTimeout, or by requestTimeout', async () => {
+    // Every page answered after 100 ms, or never when its request ends first.
+    const slow = (n: number) => {
+      const inner = paged(n);
+      return new FakeCentrifugo(
+        (m, j, init) =>
+          new Promise((resolve, reject) => {
+            const t = setTimeout(() => resolve(inner.reply(m, j, init) as never), 100);
+            init.signal?.addEventListener('abort', () => {
+              clearTimeout(t);
+              reject(init.signal?.reason);
+            });
+          }),
+      );
+    };
+    // Longer than requestTimeout: a slow page finishes, and so do all three.
+    const f = slow(7);
+    const items = await collect(
+      f.client({ requestTimeout: 30 }).historyAll({ channel: 'c', limit: 3 }, { pageTimeout: 2000 }),
+    );
+    expect(items.length).toBe(7);
+    // The iteration takes longer than any page's timeout: nothing bounds the whole.
+    const devices = await collect(
+      slow(7).client({ requestTimeout: 30 }).deviceListAll({ limit: 3 }, { pageTimeout: 150 }),
+    );
+    expect(devices.length).toBe(7);
+    // Shorter: the page ends with TimeoutError.
+    await expect(
+      collect(
+        slow(7).client({ requestTimeout: 5000 }).mapReadStateAll({ channel: 'c', limit: 3 }, { pageTimeout: 30 }),
+      ),
+    ).rejects.toBeInstanceOf(TimeoutError);
+    // Without it, each page gets requestTimeout.
+    await expect(collect(slow(7).client({ requestTimeout: 30 }).userTopicListAll({ limit: 3 }))).rejects.toBeInstanceOf(
+      TimeoutError,
+    );
+    expect((await collect(slow(4).client({ requestTimeout: 2000 }).deviceTopicListAll({ limit: 3 }))).length).toBe(4);
+  });
+
+  it('refuses a pageTimeout not above zero, and a timeout, before sending', async () => {
+    const fake = paged(7);
+    const c = fake.client();
+    for (const pageTimeout of [0, -1, Number.NaN]) {
+      await expect(collect(c.deviceListAll({ limit: 3 }, { pageTimeout }))).rejects.toThrow(
+        'deviceListAll: pageTimeout must be a positive number of milliseconds',
+      );
+    }
+    await expect(collect(c.historyAll({ channel: 'c', limit: 3 }, { pageTimeout: 0 }))).rejects.toBeInstanceOf(
+      InvalidRequestError,
+    );
+    await expect(collect(c.historyAll({ channel: 'c', limit: 3 }, { timeout: 100 } as never))).rejects.toThrow(
+      'unknown historyAll option timeout: did you mean pageTimeout?',
+    );
+    expect(fake.sent).toEqual([]);
   });
 });
 

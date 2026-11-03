@@ -31,7 +31,7 @@ import {
 } from './generated/api.ts';
 import { checkKeys } from './options.ts';
 import { checkBigIntegers, decodeJSON } from './payload.ts';
-import { type CallOptions, checkCallOptions } from './request.ts';
+import { type CallOptions, checkCallOptions, type PageOptions, pageCallOptions } from './request.ts';
 import { type BroadcastAttempt, exponentialBackoff, wait } from './retry.ts';
 import { encodeRequest } from './validate.ts';
 import { decode, kindOf } from './wire.ts';
@@ -503,7 +503,7 @@ export class Client extends ClientMethods {
    * giving its position, a page of
    * `limit` at a time: from `since` when it is set, from the start of what the
    * channel keeps otherwise. A page is read when the iteration reaches it - a
-   * call of history with `options`, its timeout bounding each page - and the
+   * call of history, `pageTimeout` - or requestTimeout - bounding it - and the
    * iteration ends after a page shorter than `limit`, or with the error of a
    * page. Leaving the loop early reads no further page.
    *
@@ -524,7 +524,8 @@ export class Client extends ClientMethods {
    * with UnrecoverablePositionError: the publications after the last one seen
    * are gone, and reading again from the start is the only way on.
    */
-  async *historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<HistoryItem, void, undefined> {
+  async *historyAll(request: HistoryRequest, options?: PageOptions): AsyncGenerator<HistoryItem, void, undefined> {
+    const page = pageCallOptions('historyAll', options);
     const limit = request?.limit ?? 0;
     if (!(limit >= 1)) {
       throw new InvalidRequestError('invalid history request: historyAll needs a limit of 1 or more: the page size');
@@ -534,7 +535,7 @@ export class Client extends ClientMethods {
     }
     let req = request;
     for (;;) {
-      const res = await this.history(req, options);
+      const res = await this.history(req, page);
       for (const pub of res.publications) {
         yield withEpoch(pub, res.epoch);
       }
@@ -548,8 +549,8 @@ export class Client extends ClientMethods {
 
   /**
    * Every device the request selects, a page at a time, each page read when
-   * the iteration reaches it - a call of deviceList with `options`, its
-   * timeout bounding each page: `limit` is the page size, the server's
+   * the iteration reaches it - a call of deviceList, `pageTimeout` - or
+   * requestTimeout - bounding it: `limit` is the page size, the server's
    * default when unset. Leaving the loop early reads no further page. A
    * device registered or removed while iterating may or may not be seen.
    * Centrifugo PRO only.
@@ -560,10 +561,14 @@ export class Client extends ClientMethods {
    * }
    * ```
    */
-  deviceListAll(request: DeviceListRequest = {}, options?: CallOptions): AsyncGenerator<Device, void, undefined> {
-    return byCursor(
+  async *deviceListAll(
+    request: DeviceListRequest = {},
+    options?: PageOptions,
+  ): AsyncGenerator<Device, void, undefined> {
+    const page = pageCallOptions('deviceListAll', options);
+    yield* byCursor(
       request,
-      (r) => this.deviceList(r, options),
+      (r) => this.deviceList(r, page),
       (res) => [res.items, res.nextCursor],
     );
   }
@@ -572,13 +577,14 @@ export class Client extends ClientMethods {
    * Every device topic the request selects, a page at a time, as
    * deviceListAll reads devices. Centrifugo PRO only.
    */
-  deviceTopicListAll(
+  async *deviceTopicListAll(
     request: DeviceTopicListRequest = {},
-    options?: CallOptions,
+    options?: PageOptions,
   ): AsyncGenerator<DeviceTopic, void, undefined> {
-    return byCursor(
+    const page = pageCallOptions('deviceTopicListAll', options);
+    yield* byCursor(
       request,
-      (r) => this.deviceTopicList(r, options),
+      (r) => this.deviceTopicList(r, page),
       (res) => [res.items, res.nextCursor],
     );
   }
@@ -587,21 +593,22 @@ export class Client extends ClientMethods {
    * Every user topic the request selects, a page at a time, as deviceListAll
    * reads devices. Centrifugo PRO only.
    */
-  userTopicListAll(
+  async *userTopicListAll(
     request: UserTopicListRequest = {},
-    options?: CallOptions,
+    options?: PageOptions,
   ): AsyncGenerator<UserTopic, void, undefined> {
-    return byCursor(
+    const page = pageCallOptions('userTopicListAll', options);
+    yield* byCursor(
       request,
-      (r) => this.userTopicList(r, options),
+      (r) => this.userTopicList(r, page),
       (res) => [res.items, res.nextCursor],
     );
   }
 
   /**
    * Every entry of a map channel's state, a page at a time, each page read
-   * when the iteration reaches it - a call of mapReadState with `options`, its
-   * timeout bounding each page: `limit` is the page size. Every page after the
+   * when the iteration reaches it - a call of mapReadState, `pageTimeout` - or
+   * requestTimeout - bounding it: `limit` is the page size. Every page after the
    * first is read at the first one's revision - its position, as
    * revisionOffset and revisionEpoch, unless the request sets them - so that
    * a state reset between pages fails with UnrecoverablePositionError instead
@@ -612,13 +619,14 @@ export class Client extends ClientMethods {
    */
   async *mapReadStateAll(
     request: MapReadStateRequest,
-    options?: CallOptions,
+    options?: PageOptions,
   ): AsyncGenerator<MapStateItem, void, undefined> {
+    const page = pageCallOptions('mapReadStateAll', options);
     let pinned = Boolean(request?.revisionOffset) || Boolean(request?.revisionEpoch);
     let revision = { revisionOffset: request?.revisionOffset, revisionEpoch: request?.revisionEpoch };
     const entries = byCursor(
       request,
-      (r) => this.mapReadState(pinned ? { ...r, ...revision } : r, options),
+      (r) => this.mapReadState(pinned ? { ...r, ...revision } : r, page),
       (res) => {
         if (!pinned) {
           revision = { revisionOffset: res.offset, revisionEpoch: res.epoch };

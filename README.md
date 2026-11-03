@@ -98,9 +98,11 @@ await client.deviceTopicUpdate({ deviceId: id, op: OP_ADD, topics: ['news'] });
 
 `historyAll`, `deviceListAll`, `deviceTopicListAll`, `userTopicListAll` and
 `mapReadStateAll` give every item of a paged method as an async iterator, a
-page read when the loop reaches it - each a call of the method with the
-call's options, `timeout` bounding each page - and none after the loop
-leaves. An error of a page ends the loop with it, after the items before it.
+page read when the loop reaches it - each a call of the method - and none
+after the loop leaves. An iteration lasts as long as your loop: it takes no
+`timeout`, but `{ pageTimeout, signal }`. `pageTimeout` bounds each page's
+request, replacing `requestTimeout` for it, which bounds each page otherwise;
+`signal` ends the iteration. An error of a page ends the loop with it, after the items before it.
 `limit` is the page size; `historyAll` needs one of 1 or more, and refuses
 `reverse`, before sending anything. The items may change under the loop: a
 device registered while listing may or may not be seen. `mapReadStateAll`

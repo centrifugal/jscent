@@ -32,3 +32,42 @@ export interface CallOptions {
    */
   signal?: AbortSignal;
 }
+
+/** The options of a paging iterator: historyAll, deviceListAll and the rest. */
+export interface PageOptions {
+  /**
+   * Milliseconds bounding each page's request, replacing requestTimeout for
+   * it: requestTimeout when unset. Zero or less is refused with
+   * InvalidRequestError. Nothing bounds the whole iteration but the loop - and
+   * the signal.
+   */
+  pageTimeout?: number;
+  /** Ends the iteration: the page in flight, and every later one, throw the signal's reason. */
+  signal?: AbortSignal;
+}
+
+/**
+ * The CallOptions of each page of an iterator with options, or
+ * InvalidRequestError for an unknown key - `timeout`, which an iteration does
+ * not take, names pageTimeout - or a pageTimeout not above zero.
+ *
+ * @internal
+ */
+export function pageCallOptions(method: string, options: PageOptions | undefined): CallOptions | undefined {
+  if (options === undefined || options === null) {
+    return undefined;
+  }
+  checkKeys(options, ['pageTimeout', 'signal'], `${method} option`, (m) => new InvalidRequestError(m), {
+    timeout: 'pageTimeout',
+  });
+  const { pageTimeout, signal } = options;
+  if (
+    pageTimeout !== undefined &&
+    (typeof pageTimeout !== 'number' || !Number.isFinite(pageTimeout) || pageTimeout <= 0)
+  ) {
+    throw new InvalidRequestError(
+      `${method}: pageTimeout must be a positive number of milliseconds; leave it unset for requestTimeout`,
+    );
+  }
+  return { timeout: pageTimeout, signal };
+}
