@@ -514,7 +514,7 @@ HMAC, RSA, ECDSA or Ed25519 through Web Crypto - and `jscent/endpoints` serves
 the endpoints the `getToken` callbacks of client SDKs call:
 
 ```ts
-import { ConnectionToken, Unauthorized } from 'jscent/endpoints';
+import { ConnectionToken, ForbiddenError } from 'jscent/endpoints';
 import * as token from 'jscent/token';
 
 const key = token.Key.hmac(secret); // client.token.hmac_secret_key
@@ -522,12 +522,16 @@ const key = token.Key.hmac(secret); // client.token.hmac_secret_key
 const connectionToken = new ConnectionToken(
   async (http) => {
     const user = await sessionUser(http);
-    if (!user) throw new Unauthorized(); // 403: the client stops asking
+    if (!user) throw new ForbiddenError(); // 403: the client stops asking
     return token.connection(key, { user, expiresAt: new Date(Date.now() + 3_600_000) });
   },
   { onError: logError },
 );
 ```
+
+`ForbiddenError` answers 403: client SDKs then stop asking, and report it as
+their `UnauthorizedError`. It is not the API client's `UnauthorizedError`,
+which means Centrifugo refused this server's credentials.
 
 An expiry is required: a `Date`, or `token.NEVER` for a token accepted
 forever. `SubscriptionToken` serves subscription tokens the same way, with the

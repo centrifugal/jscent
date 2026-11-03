@@ -1418,17 +1418,17 @@ when needed and expire ttl milliseconds later (5 minutes by default).
 
 ## jscent/endpoints
 
-### `Unauthorized`
+### `ForbiddenError`
 
 ```ts
-new Unauthorized(message?: string, options?: ErrorOptions)
+new ForbiddenError(message?: string, options?: ErrorOptions)
 ```
 
 Thrown by the function of an endpoint when the user may not have a token or
-signature: answered with 403, on which client SDKs stop asking. It is the
-endpoints' own, named after client SDKs' UnauthorizedError - not the API
-client's UnauthorizedError, which means Centrifugo refused the SDK's
-credentials.
+signature: answered with 403, on which client SDKs stop asking - they
+report it as their UnauthorizedError, and disconnect or unsubscribe. It is
+not the API client's UnauthorizedError, which means Centrifugo refused
+this server's credentials.
 
 ### `ConnectionToken`
 
@@ -1438,12 +1438,12 @@ new ConnectionToken(issue: (http: HttpRequest) => string | Promise<string>, opti
 
 The endpoint a client's getToken callback calls: issue returns the connection
 token of the request's user - from connection(), say - or throws
-Unauthorized. It takes GET and POST, the body ignored.
+ForbiddenError. It takes GET and POST, the body ignored.
 
 ```ts
 const endpoint = new ConnectionToken(async (http) => {
   const user = await sessionUser(http.headers.get('cookie'));
-  if (!user) throw new Unauthorized();
+  if (!user) throw new ForbiddenError();
   return token.connection(key, { user, expiresAt: new Date(Date.now() + 15 * 60_000) });
 });
 ```
@@ -1456,7 +1456,7 @@ new SubscriptionToken(issue: (http: HttpRequest, channel: string) => string | Pr
 
 The endpoint a subscription's getToken callback calls: issue returns the
 token of the request's user for the channel - from subscription(), say - or
-throws Unauthorized when the user may not subscribe. The channel comes from
+throws ForbiddenError when the user may not subscribe. The channel comes from
 a POST's JSON body, {"channel": ...}, or from a GET's channel query
 parameter; it is required.
 
@@ -1480,7 +1480,7 @@ of {"channel": ..., "keys": [...]}, answered {"signature": ..., "keys":
 sign decides which of the keys the user may track in the channel, signs them
 - with sharedpoll's sign, say - and returns them, in the order signed, with
 the signature. The keys it leaves out are revoked: the client stops tracking
-them. To end the subscription instead, it throws Unauthorized. It may return
+them. To end the subscription instead, it throws ForbiddenError. It may return
 only keys it was asked for: a signature covering another would be refused,
 and such a key fails the request with 500.
 

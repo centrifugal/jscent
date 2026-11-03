@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { ConnectionToken, JWKS, SharedPollSignature, SubscriptionToken, Unauthorized } from '../../src/endpoints.ts';
+import { ConnectionToken, ForbiddenError, JWKS, SharedPollSignature, SubscriptionToken } from '../../src/endpoints.ts';
 import type { HttpRequest } from '../../src/http.ts';
 import { rawJSON } from '../../src/index.ts';
 import {
@@ -36,9 +36,9 @@ describe('endpoints for client SDKs, spec section 12', () => {
     expect(errors).toEqual([]);
   });
 
-  it('answers Unauthorized, also as a cause, with 403', async () => {
+  it('answers ForbiddenError, also as a cause, with 403', async () => {
     const { errors, onError } = collect();
-    for (const e of [new Unauthorized(), new Error('wrapped', { cause: new Unauthorized() })]) {
+    for (const e of [new ForbiddenError(), new Error('wrapped', { cause: new ForbiddenError() })]) {
       const h = new ConnectionToken(() => Promise.reject(e), { onError });
       expect((await h.handle({ method: 'GET' })).status).toBe(403);
     }
