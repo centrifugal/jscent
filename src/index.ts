@@ -10,6 +10,8 @@ export {
   type Fetch,
   type FetchInit,
   type FetchResponse,
+  type HistoryItem,
+  type MapStateItem,
   type RequestInfo,
   USER_AGENT,
 } from './client.ts';

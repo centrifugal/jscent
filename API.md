@@ -173,9 +173,10 @@ Returns the status of users. Centrifugo PRO only.
 Returns publications from the history of a channel.
 History must be enabled for the channel.
 
-#### `historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<Publication, void, undefined>`
+#### `historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<HistoryItem, void, undefined>`
 
-Every publication of a channel's history, oldest first, a page of
+Every publication of a channel's history, oldest first, as a HistoryItem
+giving its position, a page of
 `limit` at a time: from `since` when it is set, from the start of what the
 channel keeps otherwise. A page is read when the iteration reaches it - a
 call of history with `options`, its timeout bounding each page - and the
@@ -184,8 +185,10 @@ page. Leaving the loop early reads no further page.
 
 ```ts
 const { position } = await client.publish({ channel: 'news', data });
-for await (const pub of client.historyAll({ channel: 'news', limit: 100, since: position })) {
-  handle(pub); // what came after the publication
+let last = position;
+for await (const item of client.historyAll({ channel: 'news', limit: 100, since: position })) {
+  handle(item.data); // what came after the publication
+  last = item.position; // to resume from later
 }
 ```
 
@@ -225,7 +228,7 @@ Publishes or updates a key in a map channel.
 Reads the current state of a map channel, with
 optional pagination.
 
-#### `mapReadStateAll(request: MapReadStateRequest, options?: CallOptions): AsyncGenerator<MapEntry, void, undefined>`
+#### `mapReadStateAll(request: MapReadStateRequest, options?: CallOptions): AsyncGenerator<MapStateItem, void, undefined>`
 
 Every entry of a map channel's state, a page at a time, each page read
 when the iteration reaches it - a call of mapReadState with `options`, its
@@ -235,7 +238,8 @@ revisionOffset and revisionEpoch, unless the request sets them - so that
 a state reset between pages fails with UnrecoverablePositionError instead
 of mixing two states: read again from the start then. Entries changed
 while iterating may be seen in either version; for a consistent view,
-read the changes since the first page's position with mapReadStream.
+read the changes since with mapReadStream, from the `state` every
+MapStateItem carries.
 
 #### `mapReadStream(request: MapReadStreamRequest, options?: CallOptions): Promise<MapReadStreamResult>`
 
@@ -857,6 +861,38 @@ What a Client reads of fetch's response: any fetch's Response has it.
 - `readonly body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array; }>; cancel(): Promise<void>; }; } | null`
 
 #### `text(): Promise<string>`
+
+### type `HistoryItem`
+
+```ts
+type HistoryItem = Publication & {
+    /** The epoch of the channel's stream the publication is in. */
+    readonly epoch: string;
+    /** Where the publication is in the channel's stream: its offset and the epoch. */
+    readonly position: Required<StreamPosition>;
+};
+```
+
+A publication historyAll read, with the epoch of the stream it is in: its
+position is where to resume reading - the `since` of historyAll or history,
+or a subscription's recoverSince - with no fields copied by hand. Its
+fields are the publication's: `item.data`, `item.offset`.
+
+### type `MapStateItem`
+
+```ts
+type MapStateItem = MapEntry & {
+    /**
+     * The position of the map's state the entry was read at: the first page's,
+     * every later page being read at it - or the revision the request set.
+     */
+    readonly state: Required<StreamPosition>;
+};
+```
+
+An entry mapReadStateAll read, with the position of the state it was read
+at: following the state with mapReadStream from it gets every change made
+since. Its fields are the entry's: `item.key`, `item.data`.
 
 ### `USER_AGENT`
 

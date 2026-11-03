@@ -139,10 +139,13 @@ describe('the API client against Centrifugo', () => {
       await c.publish({ channel: ch, data: i });
     }
     const pubs = [];
-    for await (const pub of c.historyAll({ channel: ch, since: first.position, limit: 2 })) {
-      pubs.push(pub.data);
+    let last = first.position;
+    for await (const item of c.historyAll({ channel: ch, since: first.position, limit: 2 })) {
+      pubs.push(item.data);
+      last = item.position;
     }
     expect(pubs).toEqual([1, 2, 3, 4, 5]);
+    expect(last).toEqual({ offset: 6, epoch: first.epoch });
     const top = await c.history({ channel: ch });
     expect(top.position).toEqual({ offset: 6, epoch: first.epoch });
     // A position from another epoch: the stream was reset since.
@@ -163,10 +166,16 @@ describe('the API client against Centrifugo', () => {
       await c.mapPublish({ channel: ch, key: `k${i}`, data: {} });
     }
     const keys = [];
+    const states = new Set<string>();
     for await (const e of c.mapReadStateAll({ channel: ch, limit: 2 })) {
       keys.push(e.key);
+      states.add(JSON.stringify(e.state));
     }
     expect(keys.sort()).toEqual(want);
+    // Every entry read at one state, which mapReadStream follows.
+    expect(states.size).toBe(1);
+    const at = JSON.parse([...states][0]!);
+    await c.mapReadStream({ channel: ch, sinceOffset: at.offset, sinceEpoch: at.epoch, limit: 10 });
     const state = await c.mapReadState({ channel: ch, limit: 1 });
     const stream = await c.mapReadStream({
       channel: ch,

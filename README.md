@@ -106,7 +106,10 @@ leaves. An error of a page ends the loop with it, after the items before it.
 device registered while listing may or may not be seen. `mapReadStateAll`
 reads every page after the first at the first one's revision, so that a state
 reset between pages fails with `UnrecoverablePositionError` instead of mixing
-two states: read again from the start then.
+two states: read again from the start then. `historyAll` yields each
+publication with its `position`, and `mapReadStateAll` each entry with
+`state`, the position of the state it was read at, which `mapReadStream`
+follows it from: a loop which stops can resume without copying fields.
 
 Every result holding an offset and an epoch - of `publish`, `history`,
 `mapPublish`, `mapRemove`, `mapReadState` and `mapReadStream` - gives
@@ -115,8 +118,10 @@ what came after:
 
 ```ts
 const { position } = await client.publish({ channel: 'news', data });
-for await (const pub of client.historyAll({ channel: 'news', since: position, limit: 100 })) {
-  handle(pub);
+let last = position;
+for await (const item of client.historyAll({ channel: 'news', since: position, limit: 100 })) {
+  handle(item.data);
+  last = item.position; // to resume from later
 }
 ```
 

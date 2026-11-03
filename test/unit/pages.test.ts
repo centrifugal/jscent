@@ -54,6 +54,9 @@ describe('pages', () => {
     const fake = paged(n);
     const pubs = await collect(fake.client().historyAll({ channel: 'c', limit: 3 }));
     expect(pubs.map((p) => p.offset)).toEqual(Array.from({ length: n }, (_, i) => i + 1));
+    // Each with its position: its offset and the page's epoch.
+    expect(pubs.map((p) => p.position)).toEqual(pubs.map((p) => ({ offset: p.offset, epoch: 'e' })));
+    expect(pubs.map((p) => p.data)).toEqual(Array.from({ length: n }, (_, i) => i + 1));
     // A page shorter than limit ends it: a full last page costs one more request.
     expect(fake.sent.length).toBe(Math.floor(n / 3) + 1);
     for (const [i, s] of fake.sent.entries()) {
@@ -131,14 +134,20 @@ describe('pages', () => {
 
   it("mapReadStateAll reads later pages at the first one's revision, or the caller's", async () => {
     const fake = paged(7);
-    await collect(fake.client().mapReadStateAll({ channel: 'c', limit: 3 }));
+    const entries = await collect(fake.client().mapReadStateAll({ channel: 'c', limit: 3 }));
+    // Each with the position of the state it was read at.
+    expect(entries.map((e) => e.state)).toEqual(entries.map(() => ({ offset: 9, epoch: 'e' })));
+    expect(entries[0]!.key).toBe('k0');
     expect(fake.sent.map((s) => [(s.json as any).revision_offset, (s.json as any).revision_epoch])).toEqual([
       [undefined, undefined],
       [9, 'e'],
       [9, 'e'],
     ]);
     const own = paged(7);
-    await collect(own.client().mapReadStateAll({ channel: 'c', limit: 3, revisionOffset: 5, revisionEpoch: 'x' }));
+    const ownEntries = await collect(
+      own.client().mapReadStateAll({ channel: 'c', limit: 3, revisionOffset: 5, revisionEpoch: 'x' }),
+    );
+    expect(ownEntries.map((e) => e.state)).toEqual(ownEntries.map(() => ({ offset: 5, epoch: 'x' })));
     expect(own.sent.map((s) => [(s.json as any).revision_offset, (s.json as any).revision_epoch])).toEqual([
       [5, 'x'],
       [5, 'x'],

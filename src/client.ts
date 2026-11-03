@@ -24,6 +24,7 @@ import {
   type MapReadStateRequest,
   METHODS,
   type Publication,
+  type StreamPosition,
   type UserTopic,
   type UserTopicListRequest,
 } from './generated/api.ts';
@@ -480,7 +481,8 @@ export class Client extends ClientMethods {
   // Batches.
 
   /**
-   * Every publication of a channel's history, oldest first, a page of
+   * Every publication of a channel's history, oldest first, as a HistoryItem
+   * giving its position, a page of
    * `limit` at a time: from `since` when it is set, from the start of what the
    * channel keeps otherwise. A page is read when the iteration reaches it - a
    * call of history with `options`, its timeout bounding each page - and the
@@ -489,8 +491,10 @@ export class Client extends ClientMethods {
    *
    * ```ts
    * const { position } = await client.publish({ channel: 'news', data });
-   * for await (const pub of client.historyAll({ channel: 'news', limit: 100, since: position })) {
-   *   handle(pub); // what came after the publication
+   * let last = position;
+   * for await (const item of client.historyAll({ channel: 'news', limit: 100, since: position })) {
+   *   handle(item.data); // what came after the publication
+   *   last = item.position; // to resume from later
    * }
    * ```
    *
@@ -502,7 +506,7 @@ export class Client extends ClientMethods {
    * with UnrecoverablePositionError: the publications after the last one seen
    * are gone, and reading again from the start is the only way on.
    */
-  async *historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<Publication, void, undefined> {
+  async *historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<HistoryItem, void, undefined> {
     const limit = request?.limit ?? 0;
     if (!(limit >= 1)) {
       throw new InvalidRequestError('invalid history request: historyAll needs a limit of 1 or more: the page size');
@@ -513,7 +517,9 @@ export class Client extends ClientMethods {
     let req = request;
     for (;;) {
       const res = await this.history(req, options);
-      yield* res.publications;
+      for (const pub of res.publications) {
+        yield withEpoch(pub, res.epoch);
+      }
       const last = res.publications.at(-1);
       if (last === undefined || res.publications.length < limit) {
         return;
@@ -583,12 +589,16 @@ export class Client extends ClientMethods {
    * a state reset between pages fails with UnrecoverablePositionError instead
    * of mixing two states: read again from the start then. Entries changed
    * while iterating may be seen in either version; for a consistent view,
-   * read the changes since the first page's position with mapReadStream.
+   * read the changes since with mapReadStream, from the `state` every
+   * MapStateItem carries.
    */
-  mapReadStateAll(request: MapReadStateRequest, options?: CallOptions): AsyncGenerator<MapEntry, void, undefined> {
+  async *mapReadStateAll(
+    request: MapReadStateRequest,
+    options?: CallOptions,
+  ): AsyncGenerator<MapStateItem, void, undefined> {
     let pinned = Boolean(request?.revisionOffset) || Boolean(request?.revisionEpoch);
     let revision = { revisionOffset: request?.revisionOffset, revisionEpoch: request?.revisionEpoch };
-    return byCursor(
+    const entries = byCursor(
       request,
       (r) => this.mapReadState(pinned ? { ...r, ...revision } : r, options),
       (res) => {
@@ -599,6 +609,11 @@ export class Client extends ClientMethods {
         return [res.entries, res.cursor];
       },
     );
+    for await (const entry of entries) {
+      const state = { offset: revision.revisionOffset ?? 0, epoch: revision.revisionEpoch ?? '' };
+      Object.defineProperty(entry, 'state', { value: state });
+      yield entry as MapStateItem;
+    }
   }
 
   /**
@@ -1198,4 +1213,42 @@ async function* byCursor<Req extends { cursor?: string }, Res, Item>(
     }
     req = { ...req, cursor: next };
   }
+}
+
+/**
+ * A publication historyAll read, with the epoch of the stream it is in: its
+ * position is where to resume reading - the `since` of historyAll or history,
+ * or a subscription's recoverSince - with no fields copied by hand. Its
+ * fields are the publication's: `item.data`, `item.offset`.
+ */
+export type HistoryItem = Publication & {
+  /** The epoch of the channel's stream the publication is in. */
+  readonly epoch: string;
+  /** Where the publication is in the channel's stream: its offset and the epoch. */
+  readonly position: Required<StreamPosition>;
+};
+
+/**
+ * An entry mapReadStateAll read, with the position of the state it was read
+ * at: following the state with mapReadStream from it gets every change made
+ * since. Its fields are the entry's: `item.key`, `item.data`.
+ */
+export type MapStateItem = MapEntry & {
+  /**
+   * The position of the map's state the entry was read at: the first page's,
+   * every later page being read at it - or the revision the request set.
+   */
+  readonly state: Required<StreamPosition>;
+};
+
+/** pub, a publication just decoded, as a HistoryItem of the stream epoch. */
+function withEpoch(pub: Publication, epoch: string): HistoryItem {
+  return Object.defineProperties(pub, {
+    epoch: { value: epoch },
+    position: {
+      get(this: HistoryItem): Required<StreamPosition> {
+        return { offset: this.offset, epoch: this.epoch };
+      },
+    },
+  }) as HistoryItem;
 }
