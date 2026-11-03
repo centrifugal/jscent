@@ -1000,3 +1000,79 @@ export const SharedPollRefreshResultItemFields: Fields = [
   ['removed', BOOL],
   ['prev_data', PAYLOAD],
 ];
+
+// The values of FilterNode.op.
+/** `and`: a value of FilterNode.op, a string, which may take values no constant names too. */
+export const OP_AND = 'and';
+/** `or`: a value of FilterNode.op, a string, which may take values no constant names too. */
+export const OP_OR = 'or';
+/** `not`: a value of FilterNode.op, a string, which may take values no constant names too. */
+export const OP_NOT = 'not';
+
+// The values of FilterNode.cmp.
+/** `eq`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_EQ = 'eq';
+/** `neq`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_NEQ = 'neq';
+/** `in`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_IN = 'in';
+/** `nin`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_NIN = 'nin';
+/** `ex`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_EX = 'ex';
+/** `nex`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_NEX = 'nex';
+/** `sw`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_SW = 'sw';
+/** `ew`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_EW = 'ew';
+/** `ct`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_CT = 'ct';
+/** `gt`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_GT = 'gt';
+/** `gte`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_GTE = 'gte';
+/** `lt`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_LT = 'lt';
+/** `lte`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_LTE = 'lte';
+
+// The values of ConnectRequest.protocol, RefreshRequest.protocol, SubscribeRequest.protocol, PublishRequest.protocol, MapPublishRequest.protocol, MapRemoveRequest.protocol, RPCRequest.protocol and SubRefreshRequest.protocol.
+/** `json`: a value of ConnectRequest.protocol, RefreshRequest.protocol, SubscribeRequest.protocol, PublishRequest.protocol, MapPublishRequest.protocol, MapRemoveRequest.protocol, RPCRequest.protocol and SubRefreshRequest.protocol, a string, which may take values no constant names too. */
+export const PROTOCOL_JSON = 'json';
+/** `protobuf`: a value of ConnectRequest.protocol, RefreshRequest.protocol, SubscribeRequest.protocol, PublishRequest.protocol, MapPublishRequest.protocol, MapRemoveRequest.protocol, RPCRequest.protocol and SubRefreshRequest.protocol, a string, which may take values no constant names too. */
+export const PROTOCOL_PROTOBUF = 'protobuf';
+
+// The values of ConnectRequest.encoding, RefreshRequest.encoding, SubscribeRequest.encoding, PublishRequest.encoding, MapPublishRequest.encoding, MapRemoveRequest.encoding, RPCRequest.encoding and SubRefreshRequest.encoding.
+/** `json`: a value of ConnectRequest.encoding, RefreshRequest.encoding, SubscribeRequest.encoding, PublishRequest.encoding, MapPublishRequest.encoding, MapRemoveRequest.encoding, RPCRequest.encoding and SubRefreshRequest.encoding, a string, which may take values no constant names too. */
+export const ENCODING_JSON = 'json';
+/** `binary`: a value of ConnectRequest.encoding, RefreshRequest.encoding, SubscribeRequest.encoding, PublishRequest.encoding, MapPublishRequest.encoding, MapRemoveRequest.encoding, RPCRequest.encoding and SubRefreshRequest.encoding, a string, which may take values no constant names too. */
+export const ENCODING_BINARY = 'binary';
+
+// The values of ChannelsCapability.allow and SubscribeResult.allow.
+/** `sub`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too. */
+export const ALLOW_SUB = 'sub';
+/** `pub`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too. */
+export const ALLOW_PUB = 'pub';
+/** `hst`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too. */
+export const ALLOW_HST = 'hst';
+/** `prs`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too. */
+export const ALLOW_PRS = 'prs';
+
+// The values of ChannelsCapability.match.
+/** `wildcard`: a value of ChannelsCapability.match, a string, which may take values no constant names too. */
+export const MATCH_WILDCARD = 'wildcard';
+/** `regex`: a value of ChannelsCapability.match, a string, which may take values no constant names too. */
+export const MATCH_REGEX = 'regex';
+
+// The values of MapPublishResult.keyMode.
+/** `if_new`: a value of MapPublishResult.keyMode, a string, which may take values no constant names too. */
+export const KEY_MODE_IF_NEW = 'if_new';
+/** `if_exists`: a value of MapPublishResult.keyMode, a string, which may take values no constant names too. */
+export const KEY_MODE_IF_EXISTS = 'if_exists';
+
+// The values of ChannelEvent.type.
+/** `occupied`: a value of ChannelEvent.type, a string, which may take values no constant names too. */
+export const TYPE_OCCUPIED = 'occupied';
+/** `vacated`: a value of ChannelEvent.type, a string, which may take values no constant names too. */
+export const TYPE_VACATED = 'vacated';

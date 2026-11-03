@@ -1588,7 +1588,7 @@ the request.
 ## jscent: request and result types
 
 <details>
-<summary>114 types</summary>
+<summary>144 types</summary>
 
 #### interface `ApnsPushNotification`
 
@@ -1678,6 +1678,110 @@ ClientInfo describes a client connection.
 - `readonly client: string` - The client ID.
 - `readonly connInfo: unknown` - Optional connection info.
 - `readonly chanInfo: unknown` - Optional channel info.
+
+#### `CMP_CT`
+
+```ts
+const CMP_CT = "ct";
+```
+
+`ct`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_EQ`
+
+```ts
+const CMP_EQ = "eq";
+```
+
+`eq`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_EW`
+
+```ts
+const CMP_EW = "ew";
+```
+
+`ew`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_EX`
+
+```ts
+const CMP_EX = "ex";
+```
+
+`ex`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_GT`
+
+```ts
+const CMP_GT = "gt";
+```
+
+`gt`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_GTE`
+
+```ts
+const CMP_GTE = "gte";
+```
+
+`gte`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_IN`
+
+```ts
+const CMP_IN = "in";
+```
+
+`in`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_LT`
+
+```ts
+const CMP_LT = "lt";
+```
+
+`lt`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_LTE`
+
+```ts
+const CMP_LTE = "lte";
+```
+
+`lte`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_NEQ`
+
+```ts
+const CMP_NEQ = "neq";
+```
+
+`neq`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_NEX`
+
+```ts
+const CMP_NEX = "nex";
+```
+
+`nex`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_NIN`
+
+```ts
+const CMP_NIN = "nin";
+```
+
+`nin`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_SW`
+
+```ts
+const CMP_SW = "sw";
+```
+
+`sw`: a value of FilterNode.cmp, a string, which may take values no constant names too.
 
 #### interface `ConnectionInfo`
 
@@ -1977,6 +2081,30 @@ FcmPushNotification is a notification for FCM. Centrifugo PRO only.
 
 - `message: unknown` - The FCM Message object as JSON. Required.
 
+#### `FILTER_NODE_OP_AND`
+
+```ts
+const FILTER_NODE_OP_AND = "and";
+```
+
+`and`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `FILTER_NODE_OP_NOT`
+
+```ts
+const FILTER_NODE_OP_NOT = "not";
+```
+
+`not`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `FILTER_NODE_OP_OR`
+
+```ts
+const FILTER_NODE_OP_OR = "or";
+```
+
+`or`: a value of FilterNode.op, a string, which may take values no constant names too.
+
 #### interface `FilterNode`
 
 FilterNode is a tree describing a predicate over client labels. Used as
@@ -2079,6 +2207,22 @@ type InvalidateUserTokensResult = Record<string, never>;
 
 InvalidateUserTokensResult is the result of an invalidate user tokens
 call. Empty at the moment. Centrifugo PRO only.
+
+#### `KEY_MODE_IF_EXISTS`
+
+```ts
+const KEY_MODE_IF_EXISTS = "if_exists";
+```
+
+`if_exists`: a value of MapPublishRequest.keyMode, a string, which may take values no constant names too.
+
+#### `KEY_MODE_IF_NEW`
+
+```ts
+const KEY_MODE_IF_NEW = "if_new";
+```
+
+`if_new`: a value of MapPublishRequest.keyMode, a string, which may take values no constant names too.
 
 #### interface `MapClearRequest`
 
@@ -2224,6 +2368,54 @@ NodeResult is information about a Centrifugo node.
 - `readonly process: Process | undefined` - CPU and memory usage of the node process. Centrifugo PRO only.
 - `readonly numSubs: number` - The number of subscriptions on the node.
 
+#### `OP_ADD`
+
+```ts
+const OP_ADD = "add";
+```
+
+`add`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too.
+
+#### `OP_REMOVE`
+
+```ts
+const OP_REMOVE = "remove";
+```
+
+`remove`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too.
+
+#### `OP_SET`
+
+```ts
+const OP_SET = "set";
+```
+
+`set`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too.
+
+#### `PLATFORM_ANDROID`
+
+```ts
+const PLATFORM_ANDROID = "android";
+```
+
+`android`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too.
+
+#### `PLATFORM_IOS`
+
+```ts
+const PLATFORM_IOS = "ios";
+```
+
+`ios`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too.
+
+#### `PLATFORM_WEB`
+
+```ts
+const PLATFORM_WEB = "web";
+```
+
+`web`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too.
+
 #### interface `PresenceRequest`
 
 PresenceRequest returns the online presence of a channel: all clients
@@ -2258,6 +2450,38 @@ Process is resource usage of a node process. Centrifugo PRO only.
 
 - `readonly cpu: number` - The CPU usage of the process in percent.
 - `readonly rss: number` - The resident set size of the process in bytes.
+
+#### `PROVIDER_APNS`
+
+```ts
+const PROVIDER_APNS = "apns";
+```
+
+`apns`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too.
+
+#### `PROVIDER_FCM`
+
+```ts
+const PROVIDER_FCM = "fcm";
+```
+
+`fcm`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too.
+
+#### `PROVIDER_HMS`
+
+```ts
+const PROVIDER_HMS = "hms";
+```
+
+`hms`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too.
+
+#### `PROVIDER_WEBPUSH`
+
+```ts
+const PROVIDER_WEBPUSH = "webpush";
+```
+
+`webpush`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too.
 
 #### interface `Publication`
 
@@ -2440,6 +2664,22 @@ type SharedPollPublishResult = Record<string, never>;
 
 SharedPollPublishResult is the result of a shared poll publish call.
 Empty at the moment.
+
+#### `STATUS_DELIVERED`
+
+```ts
+const STATUS_DELIVERED = "delivered";
+```
+
+`delivered`: a value of UpdatePushStatusRequest.status, a string, which may take values no constant names too.
+
+#### `STATUS_INTERACTED`
+
+```ts
+const STATUS_INTERACTED = "interacted";
+```
+
+`interacted`: a value of UpdatePushStatusRequest.status, a string, which may take values no constant names too.
 
 #### interface `StreamPosition`
 
@@ -2641,7 +2881,39 @@ Centrifugo PRO only.
 ## jscent/proxy: request and result types
 
 <details>
-<summary>29 types</summary>
+<summary>59 types</summary>
+
+#### `ALLOW_HST`
+
+```ts
+const ALLOW_HST = "hst";
+```
+
+`hst`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too.
+
+#### `ALLOW_PRS`
+
+```ts
+const ALLOW_PRS = "prs";
+```
+
+`prs`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too.
+
+#### `ALLOW_PUB`
+
+```ts
+const ALLOW_PUB = "pub";
+```
+
+`pub`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too.
+
+#### `ALLOW_SUB`
+
+```ts
+const ALLOW_SUB = "sub";
+```
+
+`sub`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too.
 
 #### interface `ChannelEvent`
 
@@ -2660,6 +2932,110 @@ operation and matches the channel. Centrifugo PRO only.
 - `channels?: readonly string[]` - The channels, or channel patterns, it applies to.
 - `allow?: readonly string[]` - The operations it grants: sub is subscribe, pub publish, hst history, prs presence. One of: sub, pub, hst, prs.
 - `match?: string` - How channels are matched: empty for exact names. One of: wildcard, regex.
+
+#### `CMP_CT`
+
+```ts
+const CMP_CT = "ct";
+```
+
+`ct`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_EQ`
+
+```ts
+const CMP_EQ = "eq";
+```
+
+`eq`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_EW`
+
+```ts
+const CMP_EW = "ew";
+```
+
+`ew`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_EX`
+
+```ts
+const CMP_EX = "ex";
+```
+
+`ex`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_GT`
+
+```ts
+const CMP_GT = "gt";
+```
+
+`gt`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_GTE`
+
+```ts
+const CMP_GTE = "gte";
+```
+
+`gte`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_IN`
+
+```ts
+const CMP_IN = "in";
+```
+
+`in`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_LT`
+
+```ts
+const CMP_LT = "lt";
+```
+
+`lt`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_LTE`
+
+```ts
+const CMP_LTE = "lte";
+```
+
+`lte`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_NEQ`
+
+```ts
+const CMP_NEQ = "neq";
+```
+
+`neq`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_NEX`
+
+```ts
+const CMP_NEX = "nex";
+```
+
+`nex`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_NIN`
+
+```ts
+const CMP_NIN = "nin";
+```
+
+`nin`: a value of FilterNode.cmp, a string, which may take values no constant names too.
+
+#### `CMP_SW`
+
+```ts
+const CMP_SW = "sw";
+```
+
+`sw`: a value of FilterNode.cmp, a string, which may take values no constant names too.
 
 #### interface `ConnectRequest`
 
@@ -2692,6 +3068,22 @@ ConnectResult accepts the connection.
 - `labels?: Record<string, string>` - PRO only — client labels attached to the centrifuge.Client by Centrifugo PRO. Parsed by OSS but not used (OSS does not populate centrifuge.ConnectReply.Labels).
 - `profile?: string` - Assigns the connection to a dictionary compression profile, as the profile claim of a connection token does: it overrides the profile the client declared. Centrifugo PRO only.
 
+#### `ENCODING_BINARY`
+
+```ts
+const ENCODING_BINARY = "binary";
+```
+
+`binary`: a value of ConnectRequest.encoding, RefreshRequest.encoding, SubscribeRequest.encoding, PublishRequest.encoding, MapPublishRequest.encoding, MapRemoveRequest.encoding, RPCRequest.encoding and SubRefreshRequest.encoding, a string, which may take values no constant names too.
+
+#### `ENCODING_JSON`
+
+```ts
+const ENCODING_JSON = "json";
+```
+
+`json`: a value of ConnectRequest.encoding, RefreshRequest.encoding, SubscribeRequest.encoding, PublishRequest.encoding, MapPublishRequest.encoding, MapRemoveRequest.encoding, RPCRequest.encoding and SubRefreshRequest.encoding, a string, which may take values no constant names too.
+
 #### interface `FilterNode`
 
 FilterNode is a node of a publication tags filter expression. A leaf node
@@ -2704,6 +3096,22 @@ logical node combines its nodes: it sets op and nodes only.
 - `val?: string` - The value most comparisons compare the tag with.
 - `vals?: readonly string[]` - The values "in" and "nin" compare the tag with.
 - `nodes?: readonly FilterNode[]` - The operands of a logical node.
+
+#### `KEY_MODE_IF_EXISTS`
+
+```ts
+const KEY_MODE_IF_EXISTS = "if_exists";
+```
+
+`if_exists`: a value of MapPublishResult.keyMode, a string, which may take values no constant names too.
+
+#### `KEY_MODE_IF_NEW`
+
+```ts
+const KEY_MODE_IF_NEW = "if_new";
+```
+
+`if_new`: a value of MapPublishResult.keyMode, a string, which may take values no constant names too.
 
 #### interface `MapPublishRequest`
 
@@ -2762,6 +3170,22 @@ keep what the client sent, or the defaults.
 - `tags?: Record<string, string>` - Attached to the removal publication. When unset, the removed entry's own tags are.
 - `idempotencyKey?: string` - Makes the removal idempotent within the broker's idempotency window.
 
+#### `MATCH_REGEX`
+
+```ts
+const MATCH_REGEX = "regex";
+```
+
+`regex`: a value of ChannelsCapability.match, a string, which may take values no constant names too.
+
+#### `MATCH_WILDCARD`
+
+```ts
+const MATCH_WILDCARD = "wildcard";
+```
+
+`wildcard`: a value of ChannelsCapability.match, a string, which may take values no constant names too.
+
 #### interface `NotifyCacheEmptyRequest`
 
 NotifyCacheEmptyRequest is sent when a client subscribed to a channel in
@@ -2790,6 +3214,46 @@ type NotifyChannelStateResult = Record<string, never>;
 ```
 
 NotifyChannelStateResult is the NotifyChannelStateResult message of the Centrifugo proxy protocol.
+
+#### `OP_AND`
+
+```ts
+const OP_AND = "and";
+```
+
+`and`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `OP_NOT`
+
+```ts
+const OP_NOT = "not";
+```
+
+`not`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `OP_OR`
+
+```ts
+const OP_OR = "or";
+```
+
+`or`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `PROTOCOL_JSON`
+
+```ts
+const PROTOCOL_JSON = "json";
+```
+
+`json`: a value of ConnectRequest.protocol, RefreshRequest.protocol, SubscribeRequest.protocol, PublishRequest.protocol, MapPublishRequest.protocol, MapRemoveRequest.protocol, RPCRequest.protocol and SubRefreshRequest.protocol, a string, which may take values no constant names too.
+
+#### `PROTOCOL_PROTOBUF`
+
+```ts
+const PROTOCOL_PROTOBUF = "protobuf";
+```
+
+`protobuf`: a value of ConnectRequest.protocol, RefreshRequest.protocol, SubscribeRequest.protocol, PublishRequest.protocol, MapPublishRequest.protocol, MapRemoveRequest.protocol, RPCRequest.protocol and SubRefreshRequest.protocol, a string, which may take values no constant names too.
 
 #### interface `PublishRequest`
 
@@ -2974,5 +3438,21 @@ SubscribeResult accepts the subscription.
 - `override?: SubscribeOptionOverride` - Overrides channel options of the namespace for this subscription.
 - `allow?: readonly string[]` - Capabilities granted in the channel for this subscription. Centrifugo PRO only. One of: sub, pub, hst, prs.
 - `serverTagsFilter?: FilterNode` - Makes the subscription receive only publications whose tags match it. Centrifugo PRO only.
+
+#### `TYPE_OCCUPIED`
+
+```ts
+const TYPE_OCCUPIED = "occupied";
+```
+
+`occupied`: a value of ChannelEvent.type, a string, which may take values no constant names too.
+
+#### `TYPE_VACATED`
+
+```ts
+const TYPE_VACATED = "vacated";
+```
+
+`vacated`: a value of ChannelEvent.type, a string, which may take values no constant names too.
 
 </details>

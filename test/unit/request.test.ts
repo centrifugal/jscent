@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { command, InvalidRequestError } from '../../src/index.ts';
+import { command, InvalidRequestError, OP_ADD, PLATFORM_ANDROID, PROVIDER_FCM } from '../../src/index.ts';
 import { FakeCentrifugo, rejection } from './fake.ts';
 
 describe('requests', () => {
@@ -140,5 +140,19 @@ describe('required fields', () => {
     await c.deviceUpdate({ ids: ['d'], userUpdate: { user: '' } });
     expect(fake.last.json).toEqual({ ids: ['d'], user_update: {} });
     expect(fake.sent.length).toBe(3);
+  });
+});
+
+describe('constants', () => {
+  it('are the values sent, and a value without one is still sent', async () => {
+    const fake = new FakeCentrifugo();
+    const c = fake.client();
+    await c.deviceRegister({ provider: PROVIDER_FCM, token: 't', platform: PLATFORM_ANDROID });
+    expect(fake.last.json).toEqual({ provider: 'fcm', token: 't', platform: 'android' });
+    await c.deviceTopicUpdate({ deviceId: 'd', op: OP_ADD, topics: ['t'] });
+    expect(fake.last.json).toEqual({ device_id: 'd', op: 'add', topics: ['t'] });
+    // Centrifugo may add values: a field is a string.
+    await c.deviceRegister({ provider: 'future_provider', token: 't', platform: 'tv' });
+    expect(fake.last.json).toEqual({ provider: 'future_provider', token: 't', platform: 'tv' });
   });
 });

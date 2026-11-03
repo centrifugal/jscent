@@ -78,6 +78,21 @@ and one left out changes nothing.
 await client.deviceUpdate({ ids: [deviceId], userUpdate: { user: '' }, timezoneUpdate: { timezone: '' } });
 ```
 
+A string field with a fixed set of values has a constant per value, named by
+the field and the value: `PROVIDER_FCM`, `PLATFORM_IOS`, `OP_ADD`,
+`STATUS_DELIVERED`, `KEY_MODE_IF_NEW`, `CMP_EQ` - and `FILTER_NODE_OP_AND`
+for `FilterNode`'s `op`, whose values differ from the topic updates'.
+`jscent/proxy` has the proxy's: `ENCODING_BINARY`, `PROTOCOL_JSON`,
+`TYPE_OCCUPIED`, `OP_AND` and the rest. The fields stay strings, so a value
+a later Centrifugo adds can be sent before jscent names it.
+
+```ts
+import { OP_ADD, PLATFORM_IOS, PROVIDER_APNS } from 'jscent';
+
+const { id } = await client.deviceRegister({ provider: PROVIDER_APNS, platform: PLATFORM_IOS, token });
+await client.deviceTopicUpdate({ deviceId: id, op: OP_ADD, topics: ['news'] });
+```
+
 ## Payloads
 
 `data`, `info`, `meta` and the other payloads are JSON values, given as the

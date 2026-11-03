@@ -46,3 +46,127 @@ export function isPresence(m: Message | undefined): boolean {
 export function isChecked(f: Field): boolean {
   return isRequired(f) && !emptyHasMeaning(f);
 }
+
+const VALUE = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * The values a field's comment lists in the sentence "One of: add, remove,
+ * set." - after "One of:", up to the period, separated by commas - or
+ * undefined without one. A malformed sentence throws, rather than leaving the
+ * field without its constants.
+ */
+export function listedValues(doc: string[]): string[] | undefined {
+  const text = doc.join(' ');
+  const at = text.indexOf('One of:');
+  if (at < 0) {
+    return undefined;
+  }
+  const rest = text.slice(at + 'One of:'.length);
+  const end = rest.indexOf('.');
+  if (end < 0) {
+    throw new Error('the values after "One of:" must end with a period');
+  }
+  const values: string[] = [];
+  for (const raw of rest.slice(0, end).split(',')) {
+    const v = raw.trim();
+    if (!VALUE.test(v)) {
+      throw new Error(`"${v}" is not a value: lowercase letters, digits and underscores`);
+    }
+    if (values.includes(v)) {
+      throw new Error(`value "${v}" listed twice`);
+    }
+    values.push(v);
+  }
+  return values;
+}
+
+/**
+ * The constants of a string field with listed values: the values, and the
+ * messages whose field of that name lists exactly them. prefix is the message
+ * name, when the field's name alone would be ambiguous.
+ */
+export interface ConstGroup {
+  field: string;
+  values: string[];
+  messages: string[];
+  prefix: string;
+}
+
+/** SCREAMING_SNAKE_CASE of a snake_case or PascalCase name: FilterNode -> FILTER_NODE. */
+function screaming(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+}
+
+/** The constant of one value of a group: OP_ADD, FILTER_NODE_OP_AND. */
+export function constName(g: ConstGroup, value: string): string {
+  return [g.prefix, g.field, value].filter(Boolean).map(screaming).join('_');
+}
+
+/**
+ * The fields with listed values of the messages include accepts, as groups, in
+ * the order of the proto. Where fields of one name list different values in
+ * different messages, the set listed in the most messages keeps the short name
+ * and the others are named by their message too - OP_ADD for the topic
+ * updates, FILTER_NODE_OP_AND for FilterNode - and a tie names all of them so.
+ * The rule runs over one proto: the API's and the proxy's constants live
+ * apart.
+ */
+export function constGroups(messages: Message[], include: (name: string) => boolean): ConstGroup[] {
+  const byField = new Map<string, ConstGroup[]>();
+  for (const m of messages) {
+    if (!include(m.name)) {
+      continue;
+    }
+    for (const f of m.fields) {
+      let values: string[] | undefined;
+      try {
+        values = listedValues(f.doc);
+      } catch (e) {
+        throw new Error(`${m.name}.${f.name}: ${(e as Error).message}`);
+      }
+      if (values === undefined) {
+        continue;
+      }
+      if (f.type !== 'string') {
+        throw new Error(`${m.name}.${f.name}: only string fields list values, not ${f.type}`);
+      }
+      const groups = byField.get(f.name) ?? [];
+      byField.set(f.name, groups);
+      let g = groups.find((o) => o.values.join() === values.join());
+      if (g === undefined) {
+        g = { field: f.name, values, messages: [], prefix: '' };
+        groups.push(g);
+      }
+      g.messages.push(m.name);
+    }
+  }
+  const out: ConstGroup[] = [];
+  for (const [name, groups] of byField) {
+    if (groups.length > 1) {
+      const most = Math.max(...groups.map((g) => g.messages.length));
+      const tie = groups.filter((g) => g.messages.length === most).length > 1;
+      for (const g of groups) {
+        if (tie || g.messages.length < most) {
+          if (g.messages.length > 1) {
+            throw new Error(
+              `field ${name} lists ${g.values.join(', ')} in ${g.messages.join(', ')} and other values elsewhere: cannot name its constants`,
+            );
+          }
+          g.prefix = g.messages[0]!;
+        }
+      }
+    }
+    out.push(...groups);
+  }
+  const seen = new Set<string>();
+  for (const g of out) {
+    for (const v of g.values) {
+      const c = constName(g, v);
+      if (seen.has(c)) {
+        throw new Error(`two constants named ${c}`);
+      }
+      seen.add(c);
+    }
+  }
+  return out;
+}

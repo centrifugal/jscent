@@ -2485,6 +2485,80 @@ export type SharedPollPublishResult = Record<string, never>;
 /** @internal */
 export const SharedPollPublishResultFields: Fields = [];
 
+// The values of FilterNode.op.
+/** `and`: a value of FilterNode.op, a string, which may take values no constant names too. */
+export const FILTER_NODE_OP_AND = 'and';
+/** `or`: a value of FilterNode.op, a string, which may take values no constant names too. */
+export const FILTER_NODE_OP_OR = 'or';
+/** `not`: a value of FilterNode.op, a string, which may take values no constant names too. */
+export const FILTER_NODE_OP_NOT = 'not';
+
+// The values of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op.
+/** `add`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
+export const OP_ADD = 'add';
+/** `remove`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
+export const OP_REMOVE = 'remove';
+/** `set`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
+export const OP_SET = 'set';
+
+// The values of FilterNode.cmp.
+/** `eq`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_EQ = 'eq';
+/** `neq`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_NEQ = 'neq';
+/** `in`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_IN = 'in';
+/** `nin`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_NIN = 'nin';
+/** `ex`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_EX = 'ex';
+/** `nex`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_NEX = 'nex';
+/** `sw`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_SW = 'sw';
+/** `ew`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_EW = 'ew';
+/** `ct`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_CT = 'ct';
+/** `gt`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_GT = 'gt';
+/** `gte`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_GTE = 'gte';
+/** `lt`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_LT = 'lt';
+/** `lte`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
+export const CMP_LTE = 'lte';
+
+// The values of DeviceRegisterRequest.provider.
+/** `fcm`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too. */
+export const PROVIDER_FCM = 'fcm';
+/** `hms`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too. */
+export const PROVIDER_HMS = 'hms';
+/** `apns`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too. */
+export const PROVIDER_APNS = 'apns';
+/** `webpush`: a value of DeviceRegisterRequest.provider, a string, which may take values no constant names too. */
+export const PROVIDER_WEBPUSH = 'webpush';
+
+// The values of DeviceRegisterRequest.platform.
+/** `ios`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too. */
+export const PLATFORM_IOS = 'ios';
+/** `android`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too. */
+export const PLATFORM_ANDROID = 'android';
+/** `web`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too. */
+export const PLATFORM_WEB = 'web';
+
+// The values of UpdatePushStatusRequest.status.
+/** `delivered`: a value of UpdatePushStatusRequest.status, a string, which may take values no constant names too. */
+export const STATUS_DELIVERED = 'delivered';
+/** `interacted`: a value of UpdatePushStatusRequest.status, a string, which may take values no constant names too. */
+export const STATUS_INTERACTED = 'interacted';
+
+// The values of MapPublishRequest.keyMode.
+/** `if_new`: a value of MapPublishRequest.keyMode, a string, which may take values no constant names too. */
+export const KEY_MODE_IF_NEW = 'if_new';
+/** `if_exists`: a value of MapPublishRequest.keyMode, a string, which may take values no constant names too. */
+export const KEY_MODE_IF_EXISTS = 'if_exists';
+
 /** Every API method: whether only Centrifugo PRO has it, its request's and its result's fields. @internal */
 export const METHODS: Record<
   string,
