@@ -3,7 +3,7 @@
 jscent is the JavaScript and TypeScript SDK for Centrifugo's HTTP server API,
 written to the
 [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md),
-whose reference implementation is gocent. Applications call it on their hot
+version 0.3, whose reference implementation is gocent. Applications call it on their hot
 paths, on Node.js, Deno, Bun and edge runtimes, so it has to be correct under
 concurrency, hard to misuse, and use web standards only. Read this before
 changing code.
@@ -14,10 +14,10 @@ changing code.
 |---|---|
 | `proto/api.proto`, `proto/proxy.proto` | Copies of Centrifugo's protos, from a released tag (`CENTRIFUGO_REF=v6.10.2 npm run sync-proto`) |
 | `gen/required_fields.txt` | The fields the protos mark "Required.", made required properties. Generation fails when the protos' list differs: a newly required field breaks every call without it, so review the change - fix the proto upstream if Centrifugo accepts the field absent - then `node gen/generate.ts --accept-required` |
-| `gen/` | `proto.ts` parses the protos, `generate.ts` writes `src/generated/`, `api_docs.ts` writes `API.md` from `dist/`'s declarations |
-| `src/generated/` | Generated - never edited: request and result types, field descriptors, the methods of the client, a batch and `command` |
+| `gen/` | `proto.ts` parses the protos, `rules.ts` reads their comments - "Required.", presence wrappers, "One of:" - `generate.ts` writes `src/generated/`, `api_docs.ts` writes `API.md` from `dist/`'s declarations |
+| `src/generated/` | Generated - never edited: request and result types, field descriptors, the constants of the fields with listed values, the methods of the client, a batch and `command` |
 | `API.md` | The API reference - never edited |
-| `src/client.ts` | `Client`: configuration, the fetch transport, broadcast, `broadcastWithRetry`, automatic batching |
+| `src/client.ts` | `Client`: configuration, the fetch transport, broadcast, `broadcastWithRetry`, the `<method>All` page iterators, automatic batching |
 | `src/wire.ts`, `src/payload.ts` | Encoding requests and decoding replies from the descriptors; payloads, `rawJSON`, `bigIntegers` |
 | `src/errors.ts` | The errors and `retryable` |
 | `src/batch.ts`, `src/broadcast.ts`, `src/retry.ts`, `src/command.ts` | Batches, broadcast results, backoff, commands |

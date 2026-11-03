@@ -1,7 +1,7 @@
 # v1.0.0
 
 A rewrite to the [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md),
-for Centrifugo v6. Migrating from jscent 0.2: see [MIGRATING.md](MIGRATING.md).
+version 0.3, for Centrifugo v6. Migrating from jscent 0.2: see [MIGRATING.md](MIGRATING.md).
 
 - No dependencies: `fetch` and Web Crypto only, on Node.js 22 or newer, Deno, Bun and edge runtimes. TypeScript types included; an ES module, which Node.js 22.12+ also loads with `require`.
 - Requests and results are generated from Centrifugo's `api.proto`, with its documentation: every API method, including the map and shared poll methods and those of Centrifugo PRO, on the client, a batch and `command` alike - `client.publish({ channel, data })`. A field jscent does not know is refused, not dropped. Promises, not callbacks.
@@ -13,7 +13,11 @@ for Centrifugo v6. Migrating from jscent 0.2: see [MIGRATING.md](MIGRATING.md).
 - `jscent/token`: connection, subscription and Centrifugo PRO server API tokens with every claim (HS256, RS256, ES256/384/512, EdDSA), JWKS, `ApiTokens`.
 - `jscent/endpoints`: the token, shared poll signature and JWKS endpoints client SDKs call. `jscent/proxy`: a handler for every proxy type. Each is a framework-free core, served by `handler.fetch` (Workers, Bun, Deno, Hono, Next.js) and `handler.node` (node:http, Express).
 - `command.publish(...)` and the like for Centrifugo's async consumers - `JSON.stringify` gives the payload as an object, `String(cmd)` the exact text; `jscent/sharedpoll` for shared poll signatures, the expiry required: a `Date`, or `token.NEVER`.
-- Fields the protos mark required are required properties; unknown keys of options and token claims are refused, with a hint. `JSON.stringify` renders results with Centrifugo's field names, errors in them as `{code, message}`; `result.failed` is a getter. A payload's JSON `null` stays `null`.
+- Fields the protos mark required are required properties, and are checked for a value before sending: `''`, `0`, an empty list or an empty object goes out as the field left out, so a call without one - from plain JavaScript too - rejects with `InvalidRequestError` naming its path (`limitStrategy.rateLimit.policies[0].rate is required`) instead of Centrifugo's code 107. A field whose empty value means something - `invalidateUserTokens`'s `user` - is not checked. Unknown keys of options and token claims are refused, with a hint.
+- A nested message with nothing set is left out - an empty `limitStrategy`, which Centrifugo refuses, is not sent - but `deviceUpdate`'s `userUpdate`, `timezoneUpdate`, `localeUpdate` and `metaUpdate` are sent whenever set, even empty: an empty one detaches the devices from their user or clears the setting.
+- Constants for the string fields with a fixed set of values, generated from the protos' "One of:" sentences: `PROVIDER_FCM`, `PLATFORM_IOS`, `OP_ADD`, `STATUS_DELIVERED`, `KEY_MODE_IF_NEW`, `CMP_EQ`, `FILTER_NODE_OP_AND`; in `jscent/proxy`, `ENCODING_BINARY`, `PROTOCOL_JSON`, `TYPE_OCCUPIED`, `OP_AND` and the rest. The fields stay strings.
+- `historyAll`, `deviceListAll`, `deviceTopicListAll`, `userTopicListAll` and `mapReadStateAll`: every item of a paged method as an async iterator, a page read when the loop reaches it; `mapReadStateAll` reads later pages at the first one's revision. `position` on the results of `publish`, `history`, `mapReadState` and `mapReadStream`: the `since` of the next history call.
+- The `profile` claim of connection tokens (Centrifugo PRO). `JSON.stringify` renders results with Centrifugo's field names, errors in them as `{code, message}`; `result.failed` is a getter. A payload's JSON `null` stays `null`.
 - TLS certificate errors are not retryable. Any `fetch` fits the option without a cast. `Pending.resolved` and the public constructors of results and partial-failure errors make test doubles.
 
 **Before releasing:** `proto/api.proto` and `proto/proxy.proto` are from Centrifugo's `master` (centrifugal/centrifugo#1308, #1309, #1310), for the "One of:" sentences spec 0.3 generates constants from and `ConnectResult.profile`: sync them again from the first Centrifugo tag holding them (`CENTRIFUGO_REF=vX.Y.Z npm run sync-proto`).
