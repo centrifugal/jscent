@@ -23,7 +23,12 @@ import { encodeRequest } from './validate.ts';
  * ```
  *
  * The outbox table's payload column is jsonb, and `cmd.payload` goes into it
- * as it is: JSON text, which PostgreSQL stores as the object.
+ * as it is: JSON text, which PostgreSQL stores as the object. Where the method
+ * travels apart - the outbox's method column, a header, an attribute -
+ * Centrifugo reads the payload as the request itself: a payload stored as a
+ * JSON string of the text is a bad request, which the consumer drops. Only a
+ * whole-command message, `{"method": ..., "payload": ...}`, may hold its
+ * payload as a string, for CDC pipelines.
  */
 export interface Command {
   /** The API method, such as "publish". */

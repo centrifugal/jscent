@@ -142,9 +142,10 @@ export class HTTPError extends CentError {
   constructor(status: number, body = '', headers: Headers = new Headers(), proMethod = '') {
     let message = `unexpected HTTP status ${status}`;
     if (status >= 300 && status < 400) {
-      // Centrifugo's API never redirects: something in front of it does, which
-      // jscent does not follow.
-      message += ' (a redirect, which jscent does not follow: check apiEndpoint, http or https say)';
+      // Centrifugo's API never redirects a call: its router redirects only a
+      // path not in canonical form - a doubled slash, say - and something in
+      // front of it may redirect http to https. jscent follows neither.
+      message += " (a redirect, which jscent does not follow: check apiEndpoint's scheme and path)";
     } else if (status === 404 && proMethod) {
       message += ` (${proMethod} is a Centrifugo PRO method: if other methods work, the server is Centrifugo OSS)`;
     } else if (status === 404) {

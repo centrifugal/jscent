@@ -740,7 +740,12 @@ await sql`INSERT INTO centrifugo_outbox (method, payload, partition) VALUES (${c
 ```
 
 The outbox table's payload column is jsonb, and `cmd.payload` goes into it
-as it is: JSON text, which PostgreSQL stores as the object.
+as it is: JSON text, which PostgreSQL stores as the object. Where the method
+travels apart - the outbox's method column, a header, an attribute -
+Centrifugo reads the payload as the request itself: a payload stored as a
+JSON string of the text is a bad request, which the consumer drops. Only a
+whole-command message, `{"method": ..., "payload": ...}`, may hold its
+payload as a string, for CDC pipelines.
 
 - `readonly method: string` - The API method, such as "publish".
 - `readonly payload: string` - The request, as JSON text.
@@ -1483,6 +1488,12 @@ The function returns a result to accept the request, or throws:
   the client with its temporary internal error; for refresh and sub refresh
   it keeps the connection or subscription for another minute and asks
   again.
+
+A handler answers with exactly one of result, error and disconnect: a
+function returning no result object fails with 500 too. Centrifugo would
+take a response with none of them as accepting a subscribe, publish, RPC,
+map publish or map remove as sent; as refusing a connect, unless anonymous
+connections are allowed; and as a refresh or sub refresh which expired.
 
 A ProxyError or Disconnect as the cause of another error counts too. The
 refresh and sub refresh proxies end a connection or subscription through

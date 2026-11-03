@@ -422,7 +422,11 @@ const subscribeHandler = new SubscribeHandler(
 Return a result to accept the request, throw `ProxyError` to reject it with an
 error the client receives, or `Disconnect` to close the client's connection;
 any other error fails the request, and goes to `onError` to be logged -
-`onError` itself must not throw. Error codes are in [400, 1999], disconnect
+`onError` itself must not throw. So does a function returning no result
+object: Centrifugo would take a response with none of result, error and
+disconnect as accepting a subscribe, publish, RPC, map publish or map remove as
+sent, as refusing a connect unless anonymous connections are allowed, and as a
+refresh or sub refresh which expired. Error codes are in [400, 1999], disconnect
 codes in [4000, 4999], and a disconnect reason is at most 32 bytes. Keep proxy
 endpoints reachable by Centrifugo only: whoever can call them can claim
 to be any user.
@@ -555,6 +559,15 @@ object.
 const cmd = command.publish({ channel: 'news', data: { text: 'hi' } });
 await sql`INSERT INTO centrifugo_outbox (method, payload, partition) VALUES (${cmd.method}, ${cmd.payload}, 0)`;
 ```
+
+Where the method travels apart from the payload - the outbox table's `method`
+column, a message header or attribute - Centrifugo reads the payload as the
+request itself, so it must be the JSON object: a payload stored as a JSON
+string of it - `JSON.stringify(cmd.payload)`, or a driver's JSON helper given
+the text - is a bad request, which the consumer drops with only Centrifugo's
+log saying so. Only a whole-command message, `{"method": ..., "payload": ...}`,
+may hold its payload as a string of JSON: a courtesy to CDC pipelines, not a
+format to rely on.
 
 A consumer keeps commands in order only within a partition: to keep a
 channel's commands in order, derive their partition from the channel the same
