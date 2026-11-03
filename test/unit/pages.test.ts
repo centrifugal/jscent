@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, InternalError, InvalidRequestError } from '../../src/index.ts';
+import { ApiError, BroadcastResult, InternalError, InvalidRequestError } from '../../src/index.ts';
 import { FakeCentrifugo, json } from './fake.ts';
 
 /**
@@ -168,20 +168,53 @@ describe('pages', () => {
 });
 
 describe('positions', () => {
-  it('are the offset and epoch of publish, history, map_read_state and map_read_stream', async () => {
-    const fake = new FakeCentrifugo((m) =>
-      m === 'history' ? { publications: [], offset: 4, epoch: 'h' } : { offset: 4, epoch: 'h', entries: [] },
-    );
+  const reply = (m: string) =>
+    m === 'history' ? { publications: [], offset: 4, epoch: 'h' } : { offset: 4, epoch: 'h', entries: [] };
+
+  it('are the offset and epoch of every result holding both, six in all', async () => {
+    const fake = new FakeCentrifugo(reply);
     const c = fake.client();
+    const want = { offset: 4, epoch: 'h' };
     const pub = await c.publish({ channel: 'c', data: 1 });
-    expect(pub.position).toEqual({ offset: 4, epoch: 'h' });
-    expect((await c.history({ channel: 'c' })).position).toEqual({ offset: 4, epoch: 'h' });
-    expect((await c.mapReadState({ channel: 'c' })).position).toEqual({ offset: 4, epoch: 'h' });
-    expect((await c.mapReadStream({ channel: 'c' })).position).toEqual({ offset: 4, epoch: 'h' });
+    expect(pub.position).toEqual(want);
+    expect((await c.history({ channel: 'c' })).position).toEqual(want);
+    expect((await c.mapPublish({ channel: 'c', key: 'k', data: 1 })).position).toEqual(want);
+    expect((await c.mapRemove({ channel: 'c', key: 'k' })).position).toEqual(want);
+    expect((await c.mapReadState({ channel: 'c' })).position).toEqual(want);
+    expect((await c.mapReadStream({ channel: 'c' })).position).toEqual(want);
     // What a publish returned is what the next history call asks from.
     await c.history({ channel: 'c', since: pub.position, limit: 10 });
-    expect((fake.last.json as any).since).toEqual({ offset: 4, epoch: 'h' });
+    expect((fake.last.json as any).since).toEqual(want);
     // Not a field: JSON has the result's fields only.
-    expect(JSON.parse(JSON.stringify(pub))).toEqual({ offset: 4, epoch: 'h' });
+    expect(JSON.parse(JSON.stringify(pub))).toEqual(want);
+  });
+
+  it('are given in a batch, in a broadcast, and to a test double of a broadcast', async () => {
+    const want = { offset: 4, epoch: 'h' };
+    const methods = ['publish', 'history', 'map_publish', 'map_remove', 'map_read_state', 'map_read_stream'];
+    const fake = new FakeCentrifugo((m, body) =>
+      m === 'batch'
+        ? json(200, { replies: methods.map((name) => ({ [name]: reply(name) })) })
+        : { responses: [{ result: want }] },
+    );
+    const c = fake.client();
+    const b = c.newBatch();
+    const pending = [
+      b.publish({ channel: 'c', data: 1 }),
+      b.history({ channel: 'c' }),
+      b.mapPublish({ channel: 'c', key: 'k', data: 1 }),
+      b.mapRemove({ channel: 'c', key: 'k' }),
+      b.mapReadState({ channel: 'c' }),
+      b.mapReadStream({ channel: 'c' }),
+    ];
+    await b.send();
+    for (const p of pending) {
+      expect(p.result().position).toEqual(want);
+    }
+    expect((await c.broadcast({ channels: ['c'], data: 1 })).channels[0]!.result!.position).toEqual(want);
+    const double = new BroadcastResult([
+      { channel: 'c', result: { offset: 4, epoch: 'h' }, error: undefined, attempts: 1 },
+    ]);
+    expect(double.channels[0]!.result!.position).toEqual(want);
   });
 });

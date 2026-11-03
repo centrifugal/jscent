@@ -107,8 +107,9 @@ reads every page after the first at the first one's revision, so that a state
 reset between pages fails with `UnrecoverablePositionError` instead of mixing
 two states: read again from the start then.
 
-The results of `publish`, `history`, `mapReadState` and `mapReadStream` give
-their offset and epoch as `position`, the `since` of the history call reading
+Every result holding an offset and an epoch - of `publish`, `history`,
+`mapPublish`, `mapRemove`, `mapReadState` and `mapReadStream` - gives
+its offset and epoch as `position`, the `since` of the history call reading
 what came after:
 
 ```ts

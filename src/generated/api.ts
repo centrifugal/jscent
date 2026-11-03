@@ -2209,15 +2209,21 @@ export interface MapPublishResult {
    * "idempotency", "version", "key_exists" or "key_not_found".
    */
   readonly suppressReason: string;
+  /**
+   * The offset and epoch as a stream position: the `since` of a history call reading what came after, or,
+   * as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the
+   * stream's fails with UnrecoverablePositionError: the stream was reset.
+   */
+  readonly position: Required<StreamPosition>;
 }
 
 /** @internal */
-export const MapPublishResultFields: Fields = [
+export const MapPublishResultFields: Fields = /* @__PURE__ */ positioned([
   ['offset', INT],
   ['epoch', STRING],
   ['suppressed', BOOL],
   ['suppress_reason', STRING],
-];
+]);
 
 /** MapRemoveRequest removes a key from a map channel. */
 export interface MapRemoveRequest {
@@ -2257,15 +2263,21 @@ export interface MapRemoveResult {
    * "idempotency" or "key_not_found".
    */
   readonly suppressReason: string;
+  /**
+   * The offset and epoch as a stream position: the `since` of a history call reading what came after, or,
+   * as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the
+   * stream's fails with UnrecoverablePositionError: the stream was reset.
+   */
+  readonly position: Required<StreamPosition>;
 }
 
 /** @internal */
-export const MapRemoveResultFields: Fields = [
+export const MapRemoveResultFields: Fields = /* @__PURE__ */ positioned([
   ['offset', INT],
   ['epoch', STRING],
   ['suppressed', BOOL],
   ['suppress_reason', STRING],
-];
+]);
 
 /**
  * MapReadStateRequest reads the current state of a map channel, with

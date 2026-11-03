@@ -2345,6 +2345,7 @@ MapPublishResult is the result of a map publish call.
 - `readonly epoch: string` - The epoch of the channel stream.
 - `readonly suppressed: boolean` - True if the publish was not applied, see `suppressReason`.
 - `readonly suppressReason: string` - Explains why the publish was suppressed, for example "idempotency", "version", "key_exists" or "key_not_found".
+- `readonly position: Required<StreamPosition>` - The offset and epoch as a stream position: the `since` of a history call reading what came after, or, as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the stream's fails with UnrecoverablePositionError: the stream was reset.
 
 #### interface `MapReadStateRequest`
 
@@ -2404,6 +2405,7 @@ MapRemoveResult is the result of a map remove call.
 - `readonly epoch: string` - The epoch of the channel stream.
 - `readonly suppressed: boolean` - True if the removal was not applied, see `suppressReason`.
 - `readonly suppressReason: string` - Explains why the removal was suppressed, for example "idempotency" or "key_not_found".
+- `readonly position: Required<StreamPosition>` - The offset and epoch as a stream position: the `since` of a history call reading what came after, or, as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the stream's fails with UnrecoverablePositionError: the stream was reset.
 
 #### interface `MapStatsRequest`
 

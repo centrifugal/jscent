@@ -27,11 +27,26 @@ const HANDWRITTEN = new Set(['Error', 'BroadcastResult']);
 const WIRE_ONLY = new Set(['Command', 'Reply', 'BatchRequest', 'BatchResponse']);
 const WRAPPERS: Record<string, string> = { BoolValue: 'boolean', Int32Value: 'number' };
 // The results which give their offset and epoch as a StreamPosition, their
-// position (spec 3.8): what the next history or map_read_stream call reads
-// from.
-// Only api.proto's: the proxy has a PublishResult too.
-const POSITIONED = new Set(['PublishResult', 'HistoryResult', 'MapReadStateResult', 'MapReadStreamResult']);
+// position (spec 3.8): every message the API client receives holding both -
+// what the next history or map_read_stream call reads from. Only api.proto's:
+// the proxy has a PublishResult too. Set by generateApi.
+let POSITIONED = new Set<string>();
 let positions = false;
+
+/** The received messages of s holding an integer offset and a string epoch. */
+function positionedResults(s: Schema, received: Set<string>): Set<string> {
+  const ints = new Set(['int32', 'int64', 'uint32', 'uint64']);
+  return new Set(
+    s.messages
+      .filter((m) => received.has(m.name))
+      .filter(
+        (m) =>
+          m.fields.some((f) => f.name === 'offset' && ints.has(f.type) && !f.repeated) &&
+          m.fields.some((f) => f.name === 'epoch' && f.type === 'string' && !f.repeated),
+      )
+      .map((m) => m.name),
+  );
+}
 const TS_TYPES: Record<string, [string, string]> = {
   string: ['string', 'STRING'],
   bool: ['boolean', 'BOOL'],
@@ -385,6 +400,7 @@ function generateApi(s: Schema): string {
   };
   // BroadcastResult is hand-written, but its PublishResult is received.
   sh.output.add('PublishResult');
+  POSITIONED = positionedResults(s, sh.output);
   for (const c of cmds) {
     sh.input.delete(c.request.name);
   }
