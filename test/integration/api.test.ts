@@ -8,6 +8,7 @@ import {
   rawJSON,
   retryable,
   UnknownChannelError,
+  UnrecoverablePositionError,
 } from '../../src/index.ts';
 import * as token from '../../src/token.ts';
 import { client, Stream, unique } from './setup.ts';
@@ -127,6 +128,60 @@ describe('the API client against Centrifugo', () => {
     expect(state.entries.map((e) => e.key).sort()).toEqual(['k1', 'k2']);
     await c.mapRemove({ channel: ch, key: 'k1' });
     expect((await c.mapStats({ channel: ch })).numKeys).toBe(1);
+    await c.mapClear({ channel: ch });
+  });
+
+  it('reads what came after a publication, page by page', async () => {
+    const c = await client();
+    const ch = unique();
+    const first = await c.publish({ channel: ch, data: 0 });
+    for (let i = 1; i <= 5; i++) {
+      await c.publish({ channel: ch, data: i });
+    }
+    const pubs = [];
+    for await (const pub of c.historyAll({ channel: ch, since: first.position, limit: 2 })) {
+      pubs.push(pub.data);
+    }
+    expect(pubs).toEqual([1, 2, 3, 4, 5]);
+    const top = await c.history({ channel: ch });
+    expect(top.position).toEqual({ offset: 6, epoch: first.epoch });
+    // A position from another epoch: the stream was reset since.
+    const stale = (async () => {
+      for await (const _ of c.historyAll({ channel: ch, since: { offset: 1, epoch: 'gone' }, limit: 2 })) {
+        // Nothing to read.
+      }
+    })();
+    await expect(stale).rejects.toBeInstanceOf(UnrecoverablePositionError);
+  });
+
+  it("reads a map's state page by page, at the first page's revision", async () => {
+    const c = await client();
+    const ch = `map:${unique()}`;
+    const want = [];
+    for (let i = 0; i < 5; i++) {
+      want.push(`k${i}`);
+      await c.mapPublish({ channel: ch, key: `k${i}`, data: {} });
+    }
+    const keys = [];
+    for await (const e of c.mapReadStateAll({ channel: ch, limit: 2 })) {
+      keys.push(e.key);
+    }
+    expect(keys.sort()).toEqual(want);
+    const state = await c.mapReadState({ channel: ch, limit: 1 });
+    const stream = await c.mapReadStream({
+      channel: ch,
+      sinceOffset: state.position.offset,
+      sinceEpoch: state.position.epoch,
+      limit: 10,
+    });
+    expect(stream.position.epoch).toBe(state.position.epoch);
+    // A revision from another epoch fails: the state was reset since.
+    const stale = (async () => {
+      for await (const _ of c.mapReadStateAll({ channel: ch, limit: 2, revisionOffset: 1, revisionEpoch: 'gone' })) {
+        // Nothing to read.
+      }
+    })();
+    await expect(stale).rejects.toBeInstanceOf(UnrecoverablePositionError);
     await c.mapClear({ channel: ch });
   });
 

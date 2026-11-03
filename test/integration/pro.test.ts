@@ -10,7 +10,16 @@
 import { connect as tcp } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { JWKS } from '../../src/endpoints.ts';
-import { Client, command, NotAvailableError, UnauthorizedError } from '../../src/index.ts';
+import {
+  Client,
+  command,
+  NotAvailableError,
+  OP_ADD,
+  PLATFORM_WEB,
+  PROVIDER_WEBPUSH,
+  STATUS_DELIVERED,
+  UnauthorizedError,
+} from '../../src/index.ts';
 import * as token from '../../src/token.ts';
 import { ADDR, pro, serve, stop, unique } from './setup.ts';
 
@@ -60,8 +69,8 @@ describe('Centrifugo PRO', () => {
     if (!c) return ctx.skip();
     const user = unique();
     const reg = await c.deviceRegister({
-      provider: 'webpush',
-      platform: 'web',
+      provider: PROVIDER_WEBPUSH,
+      platform: PLATFORM_WEB,
       token: await webpushToken(),
       user,
       meta: { app: 'jscent' },
@@ -79,13 +88,20 @@ describe('Centrifugo PRO', () => {
     expect(list.items[0]!.id).toBe(reg.id);
     expect(list.items[0]!.meta).toEqual({ app: 'jscent' });
     expect(list.items[0]!.topics).toContain('news');
-    await c.deviceTopicUpdate({ deviceId: reg.id, op: 'add', topics: ['sport'] });
+    await c.deviceTopicUpdate({ deviceId: reg.id, op: OP_ADD, topics: ['sport'] });
     expect((await c.deviceTopicList({ filter: { deviceIds: [reg.id] }, includeTotalCount: true })).totalCount).toBe(2);
-    await c.deviceUpdate({ ids: [reg.id], metaUpdate: { meta: { app: 'updated' } } });
-    expect((await c.deviceList({ filter: byUser, includeMeta: true })).items[0]!.meta).toEqual({
-      app: 'updated',
+    await c.deviceUpdate({
+      ids: [reg.id],
+      metaUpdate: { meta: { app: 'updated' } },
+      timezoneUpdate: { timezone: 'Europe/Berlin' },
     });
-    await c.userTopicUpdate({ user, op: 'add', topics: ['alerts'] });
+    const updated = (await c.deviceList({ filter: byUser, includeMeta: true })).items[0]!;
+    expect(updated.meta).toEqual({ app: 'updated' });
+    expect(updated.timezone).toBe('Europe/Berlin');
+    // An empty update is sent, and clears it.
+    await c.deviceUpdate({ ids: [reg.id], timezoneUpdate: { timezone: '' } });
+    expect((await c.deviceList({ filter: byUser })).items[0]!.timezone).toBe('');
+    await c.userTopicUpdate({ user, op: OP_ADD, topics: ['alerts'] });
     expect((await c.userTopicList({ filter: { users: [user] } })).items.map((i) => i.topic)).toEqual(['alerts']);
     const push = await c.sendPushNotification({
       recipient: { filter: byUser },
@@ -95,11 +111,62 @@ describe('Centrifugo PRO', () => {
     expect(push.uid).not.toBe('');
     await c.cancelPush({ uid: push.uid });
     // Push status needs push analytics in ClickHouse; without it, the method is not available.
-    await c.updatePushStatus({ analyticsUid: push.uid, status: 'delivered', deviceId: reg.id }).catch((e) => {
+    await c.updatePushStatus({ analyticsUid: push.uid, status: STATUS_DELIVERED, deviceId: reg.id }).catch((e) => {
       expect(e).toBeInstanceOf(NotAvailableError);
     });
     await c.deviceRemove({ ids: [reg.id] });
     expect((await c.deviceList({ filter: byUser })).items).toEqual([]);
+  });
+
+  // Every part the checks before sending look into: each request sets
+  // exactly what Centrifugo requires, so a check stricter than its own fails
+  // here.
+  it('push with rate and time limits, a device detached by an empty update, devices page by page', async (ctx) => {
+    const c = await pro();
+    if (!c) return ctx.skip();
+    const user = unique();
+    const ids: string[] = [];
+    try {
+      for (let i = 0; i < 3; i++) {
+        const reg = await c.deviceRegister({
+          provider: PROVIDER_WEBPUSH,
+          platform: PLATFORM_WEB,
+          token: await webpushToken(),
+          user,
+        });
+        ids.push(reg.id);
+      }
+      const byUser = { users: [user] };
+      const seen: string[] = [];
+      for await (const d of c.deviceListAll({ filter: byUser, limit: 2 })) {
+        seen.push(d.id);
+      }
+      expect(seen.sort()).toEqual([...ids].sort());
+
+      const strategies = {
+        'rate limit': { rateLimit: { key: 'device.id', policies: [{ rate: 1, intervalMs: 60000 }] } },
+        'time limit': { timeLimit: { sendAfterTime: '09:00:00', sendBeforeTime: '21:00:00', noTzSendNow: true } },
+      };
+      for (const [name, limitStrategy] of Object.entries(strategies)) {
+        const now = Math.floor(Date.now() / 1000);
+        const push = await c.sendPushNotification({
+          recipient: { filter: byUser },
+          // A limit strategy needs expireAt: a push the limits hold back is
+          // not tried forever.
+          notification: { webpush: { payload: { title: 'hi' } }, expireAt: now + 7200 },
+          limitStrategy,
+          sendAt: now + 3600,
+        });
+        expect(push.uid, name).not.toBe('');
+        await c.cancelPush({ uid: push.uid });
+      }
+
+      // An empty user update detaches the device.
+      await c.deviceUpdate({ ids: ids.slice(0, 1), userUpdate: { user: '' } });
+      expect((await c.deviceList({ filter: { ids: ids.slice(0, 1) } })).items.map((d) => d.user)).toEqual(['']);
+    } finally {
+      await c.deviceRemove({ ids });
+    }
   });
 
   it('PRO methods in a batch', async (ctx) => {
