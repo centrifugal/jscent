@@ -158,7 +158,7 @@ export interface ClientOptions {
    * Instead of apiEndpoint, returns it for each request, for addresses
    * discovered rather than fixed. One failing apiEndpoint's rules fails the
    * call with InvalidConfigError, before sending; the function's own error
-   * fails it as an FunctionError, its cause.
+   * fails it as a FunctionError, its cause.
    */
   getApiEndpoint?: () => string | Promise<string>;
   /**
@@ -171,7 +171,7 @@ export interface ClientOptions {
    * Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token,
    * say. Not together with apiKey. An empty token, or one which is not
    * printable ASCII, fails the call with InvalidConfigError, before sending;
-   * the function's own error fails it as an FunctionError, its cause.
+   * the function's own error fails it as a FunctionError, its cause.
    */
   getBearerToken?: () => string | Promise<string>;
   /**
@@ -936,7 +936,7 @@ function validHeaderValue(v: string): boolean {
 }
 
 /** The endpoint without a trailing slash, or InvalidConfigError naming what is wrong. */
-/** The result of a function of the options; its own error as the cause of an FunctionError naming it. */
+/** The result of a function of the options; its own error as the cause of a FunctionError naming it. */
 async function callOption<T>(f: () => T | Promise<T>, name: string): Promise<T> {
   try {
     return await f();
