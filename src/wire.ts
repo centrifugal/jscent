@@ -253,7 +253,31 @@ export function decode<T>(fields: Fields, v: unknown, path: string): T {
   return out as T;
 }
 
+/**
+ * A message built by hand - a test double's result, say - as decode gives
+ * one: with toJSON and, for a result with a position, position. One decode
+ * made is returned as it is.
+ *
+ * @internal
+ */
+export function asDecoded<T extends object>(fields: Fields, obj: T): T {
+  const proto = protoOf(fields);
+  return Object.getPrototypeOf(obj) === proto ? obj : Object.assign(Object.create(proto) as T, obj);
+}
+
 const protos = new WeakMap<Fields, object>();
+const positionedFields = new WeakSet<Fields>();
+
+/**
+ * Marks the fields of a result giving its offset and epoch as `position`, a
+ * StreamPosition. Returns fields.
+ *
+ * @internal
+ */
+export function positioned(fields: Fields): Fields {
+  positionedFields.add(fields);
+  return fields;
+}
 
 /**
  * The prototype of decoded messages of fields: an object whose toJSON gives
@@ -282,6 +306,13 @@ function protoOf(fields: Fields): object {
       },
     },
   });
+  if (positionedFields.has(fields)) {
+    Object.defineProperty(proto, 'position', {
+      get(this: { offset: number; epoch: string }): { offset: number; epoch: string } {
+        return { offset: this.offset, epoch: this.epoch };
+      },
+    });
+  }
   protos.set(fields, proto);
   return proto;
 }

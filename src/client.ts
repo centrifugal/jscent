@@ -12,7 +12,21 @@ import {
   retryable,
   TimeoutError,
 } from './errors.ts';
-import { type BroadcastRequest, ClientMethods, METHODS } from './generated/api.ts';
+import {
+  type BroadcastRequest,
+  ClientMethods,
+  type Device,
+  type DeviceListRequest,
+  type DeviceTopic,
+  type DeviceTopicListRequest,
+  type HistoryRequest,
+  type MapEntry,
+  type MapReadStateRequest,
+  METHODS,
+  type Publication,
+  type UserTopic,
+  type UserTopicListRequest,
+} from './generated/api.ts';
 import { checkKeys } from './options.ts';
 import { checkBigIntegers, decodeJSON } from './payload.ts';
 import { type CallOptions, checkCallOptions } from './request.ts';
@@ -464,6 +478,128 @@ export class Client extends ClientMethods {
   }
 
   // Batches.
+
+  /**
+   * Every publication of a channel's history, oldest first, a page of
+   * `limit` at a time: from `since` when it is set, from the start of what the
+   * channel keeps otherwise. A page is read when the iteration reaches it - a
+   * call of history with `options`, its timeout bounding each page - and the
+   * iteration ends after a page shorter than `limit`, or with the error of a
+   * page. Leaving the loop early reads no further page.
+   *
+   * ```ts
+   * const { position } = await client.publish({ channel: 'news', data });
+   * for await (const pub of client.historyAll({ channel: 'news', limit: 100, since: position })) {
+   *   handle(pub); // what came after the publication
+   * }
+   * ```
+   *
+   * `limit` is the page size, so it must be 1 or more, and `reverse` is
+   * refused: `since` reads forward only. Either rejects the first iteration
+   * with InvalidRequestError, before anything is sent. A publication made
+   * while iterating may or may not be seen. An epoch which changed since a
+   * page was read - the history was lost, with a Redis restart say - fails
+   * with UnrecoverablePositionError: the publications after the last one seen
+   * are gone, and reading again from the start is the only way on.
+   */
+  async *historyAll(request: HistoryRequest, options?: CallOptions): AsyncGenerator<Publication, void, undefined> {
+    const limit = request?.limit ?? 0;
+    if (!(limit >= 1)) {
+      throw new InvalidRequestError('invalid history request: historyAll needs a limit of 1 or more: the page size');
+    }
+    if (request.reverse) {
+      throw new InvalidRequestError('invalid history request: historyAll reads forward only: reverse is not supported');
+    }
+    let req = request;
+    for (;;) {
+      const res = await this.history(req, options);
+      yield* res.publications;
+      const last = res.publications.at(-1);
+      if (last === undefined || res.publications.length < limit) {
+        return;
+      }
+      req = { ...req, since: { offset: last.offset, epoch: res.epoch } };
+    }
+  }
+
+  /**
+   * Every device the request selects, a page at a time, each page read when
+   * the iteration reaches it - a call of deviceList with `options`, its
+   * timeout bounding each page: `limit` is the page size, the server's
+   * default when unset. Leaving the loop early reads no further page. A
+   * device registered or removed while iterating may or may not be seen.
+   * Centrifugo PRO only.
+   *
+   * ```ts
+   * for await (const device of client.deviceListAll({ filter: { users: ['42'] }, limit: 100 })) {
+   *   console.log(device.id);
+   * }
+   * ```
+   */
+  deviceListAll(request: DeviceListRequest = {}, options?: CallOptions): AsyncGenerator<Device, void, undefined> {
+    return byCursor(
+      request,
+      (r) => this.deviceList(r, options),
+      (res) => [res.items, res.nextCursor],
+    );
+  }
+
+  /**
+   * Every device topic the request selects, a page at a time, as
+   * deviceListAll reads devices. Centrifugo PRO only.
+   */
+  deviceTopicListAll(
+    request: DeviceTopicListRequest = {},
+    options?: CallOptions,
+  ): AsyncGenerator<DeviceTopic, void, undefined> {
+    return byCursor(
+      request,
+      (r) => this.deviceTopicList(r, options),
+      (res) => [res.items, res.nextCursor],
+    );
+  }
+
+  /**
+   * Every user topic the request selects, a page at a time, as deviceListAll
+   * reads devices. Centrifugo PRO only.
+   */
+  userTopicListAll(
+    request: UserTopicListRequest = {},
+    options?: CallOptions,
+  ): AsyncGenerator<UserTopic, void, undefined> {
+    return byCursor(
+      request,
+      (r) => this.userTopicList(r, options),
+      (res) => [res.items, res.nextCursor],
+    );
+  }
+
+  /**
+   * Every entry of a map channel's state, a page at a time, each page read
+   * when the iteration reaches it - a call of mapReadState with `options`, its
+   * timeout bounding each page: `limit` is the page size. Every page after the
+   * first is read at the first one's revision - its position, as
+   * revisionOffset and revisionEpoch, unless the request sets them - so that
+   * a state reset between pages fails with UnrecoverablePositionError instead
+   * of mixing two states: read again from the start then. Entries changed
+   * while iterating may be seen in either version; for a consistent view,
+   * read the changes since the first page's position with mapReadStream.
+   */
+  mapReadStateAll(request: MapReadStateRequest, options?: CallOptions): AsyncGenerator<MapEntry, void, undefined> {
+    let pinned = Boolean(request?.revisionOffset) || Boolean(request?.revisionEpoch);
+    let revision = { revisionOffset: request?.revisionOffset, revisionEpoch: request?.revisionEpoch };
+    return byCursor(
+      request,
+      (r) => this.mapReadState(pinned ? { ...r, ...revision } : r, options),
+      (res) => {
+        if (!pinned) {
+          revision = { revisionOffset: res.offset, revisionEpoch: res.epoch };
+          pinned = true;
+        }
+        return [res.entries, res.cursor];
+      },
+    );
+  }
 
   /**
    * An empty Batch sent by this client. Without `parallel` the commands run
@@ -1041,5 +1177,25 @@ class AutoBatcher {
       this.#release();
       this.#client.leaveWork();
     }
+  }
+}
+
+/**
+ * The items of a method paged by a cursor: it sends request, then request
+ * with the cursor of each reply, until a reply has none.
+ */
+async function* byCursor<Req extends { cursor?: string }, Res, Item>(
+  request: Req,
+  call: (request: Req) => Promise<Res>,
+  page: (result: Res) => [Item[], string],
+): AsyncGenerator<Item, void, undefined> {
+  let req = request;
+  for (;;) {
+    const [items, next] = page(await call(req));
+    yield* items;
+    if (next === '') {
+      return;
+    }
+    req = { ...req, cursor: next };
   }
 }

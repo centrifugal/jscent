@@ -1,6 +1,6 @@
 import { ApiError, BroadcastFailedChannelsError, DecodeError, errorJSON } from './errors.ts';
 import { type PublishResult, PublishResultFields } from './generated/api.ts';
-import { decode, kindOf } from './wire.ts';
+import { asDecoded, decode, kindOf } from './wire.ts';
 
 /** The outcome of a broadcast in one channel. */
 export interface ChannelResult {
@@ -15,6 +15,11 @@ export interface ChannelResult {
   readonly error: Error | undefined;
   /** How many times the channel was sent: more than 1 when broadcastWithRetry retried it. */
   readonly attempts: number;
+}
+
+/** A ChannelResult as a test double builds it: the result without its position. */
+export interface ChannelResultInit extends Omit<ChannelResult, 'result'> {
+  readonly result: Omit<PublishResult, 'position'> | undefined;
 }
 
 /**
@@ -44,9 +49,16 @@ export class BroadcastResult {
    */
   readonly replied: boolean;
 
-  /** Every field as the result has it: for test doubles, say. */
-  constructor(channels: ChannelResult[], idempotencyKey = '', attempts = 1, replied = true) {
-    this.channels = channels;
+  /**
+   * Every field as the result has it: for test doubles, say. A channel's
+   * result may be a plain `{ offset, epoch }`: it gets its position.
+   */
+  constructor(channels: ChannelResultInit[], idempotencyKey = '', attempts = 1, replied = true) {
+    this.channels = channels.map((c) =>
+      c.result === undefined || 'position' in c.result
+        ? (c as ChannelResult)
+        : { ...c, result: asDecoded(PublishResultFields, c.result) as PublishResult },
+    );
     this.idempotencyKey = idempotencyKey;
     this.attempts = attempts;
     this.replied = replied;

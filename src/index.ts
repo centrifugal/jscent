@@ -1,7 +1,7 @@
 // jscent: the JavaScript SDK for Centrifugo's HTTP server API.
 
 export { Batch, BatchResult, type FailedCommand, Pending } from './batch.ts';
-export { BroadcastResult, type ChannelResult } from './broadcast.ts';
+export { BroadcastResult, type ChannelResult, type ChannelResultInit } from './broadcast.ts';
 export {
   type AutoBatch,
   type BroadcastRetryOptions,

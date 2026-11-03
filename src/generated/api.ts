@@ -16,6 +16,7 @@ import {
   MESSAGE,
   PAYLOAD,
   PRESENCE,
+  positioned,
   REQUIRED,
   SINGLE,
   STRING,
@@ -90,13 +91,19 @@ export interface PublishResult {
   readonly offset: number;
   /** The epoch of the channel history stream. */
   readonly epoch: string;
+  /**
+   * The offset and epoch as a stream position: the `since` of a history call reading what came after, or,
+   * as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the
+   * stream's fails with UnrecoverablePositionError: the stream was reset.
+   */
+  readonly position: Required<StreamPosition>;
 }
 
 /** @internal */
-export const PublishResultFields: Fields = [
+export const PublishResultFields: Fields = /* @__PURE__ */ positioned([
   ['offset', INT],
   ['epoch', STRING],
-];
+]);
 
 /** BroadcastRequest publishes the same data into many channels. */
 export interface BroadcastRequest {
@@ -557,14 +564,20 @@ export interface HistoryResult {
   readonly epoch: string;
   /** The top offset of the history stream. */
   readonly offset: number;
+  /**
+   * The offset and epoch as a stream position: the `since` of a history call reading what came after, or,
+   * as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the
+   * stream's fails with UnrecoverablePositionError: the stream was reset.
+   */
+  readonly position: Required<StreamPosition>;
 }
 
 /** @internal */
-export const HistoryResultFields: Fields = [
+export const HistoryResultFields: Fields = /* @__PURE__ */ positioned([
   ['publications', MESSAGE, LIST, () => PublicationFields],
   ['epoch', STRING],
   ['offset', INT],
-];
+]);
 
 /**
  * HistoryRemoveRequest removes publications from the history of a channel.
@@ -2319,15 +2332,21 @@ export interface MapReadStateResult {
    * entries.
    */
   readonly cursor: string;
+  /**
+   * The offset and epoch as a stream position: the `since` of a history call reading what came after, or,
+   * as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the
+   * stream's fails with UnrecoverablePositionError: the stream was reset.
+   */
+  readonly position: Required<StreamPosition>;
 }
 
 /** @internal */
-export const MapReadStateResultFields: Fields = [
+export const MapReadStateResultFields: Fields = /* @__PURE__ */ positioned([
   ['entries', MESSAGE, LIST, () => MapEntryFields],
   ['offset', INT],
   ['epoch', STRING],
   ['cursor', STRING],
-];
+]);
 
 /** MapEntry is an entry of a map channel state or stream. */
 export interface MapEntry {
@@ -2398,14 +2417,20 @@ export interface MapReadStreamResult {
   readonly offset: number;
   /** The epoch of the channel stream. */
   readonly epoch: string;
+  /**
+   * The offset and epoch as a stream position: the `since` of a history call reading what came after, or,
+   * as sinceOffset and sinceEpoch, of a mapReadStream call. A position whose epoch is no longer the
+   * stream's fails with UnrecoverablePositionError: the stream was reset.
+   */
+  readonly position: Required<StreamPosition>;
 }
 
 /** @internal */
-export const MapReadStreamResultFields: Fields = [
+export const MapReadStreamResultFields: Fields = /* @__PURE__ */ positioned([
   ['entries', MESSAGE, LIST, () => MapEntryFields],
   ['offset', INT],
   ['epoch', STRING],
-];
+]);
 
 /** MapStatsRequest returns statistics about a map channel. */
 export interface MapStatsRequest {

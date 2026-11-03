@@ -93,6 +93,35 @@ const { id } = await client.deviceRegister({ provider: PROVIDER_APNS, platform: 
 await client.deviceTopicUpdate({ deviceId: id, op: OP_ADD, topics: ['news'] });
 ```
 
+## Pages and positions
+
+`historyAll`, `deviceListAll`, `deviceTopicListAll`, `userTopicListAll` and
+`mapReadStateAll` give every item of a paged method as an async iterator, a
+page read when the loop reaches it - each a call of the method with the
+call's options, `timeout` bounding each page - and none after the loop
+leaves. An error of a page ends the loop with it, after the items before it.
+`limit` is the page size; `historyAll` needs one of 1 or more, and refuses
+`reverse`, before sending anything. The items may change under the loop: a
+device registered while listing may or may not be seen. `mapReadStateAll`
+reads every page after the first at the first one's revision, so that a state
+reset between pages fails with `UnrecoverablePositionError` instead of mixing
+two states: read again from the start then.
+
+The results of `publish`, `history`, `mapReadState` and `mapReadStream` give
+their offset and epoch as `position`, the `since` of the history call reading
+what came after:
+
+```ts
+const { position } = await client.publish({ channel: 'news', data });
+for await (const pub of client.historyAll({ channel: 'news', since: position, limit: 100 })) {
+  handle(pub);
+}
+```
+
+A position whose epoch is no longer the stream's fails with
+`UnrecoverablePositionError`: the stream was reset - its history lost with a
+Redis restart, say - and reading from its start is the only way on.
+
 ## Payloads
 
 `data`, `info`, `meta` and the other payloads are JSON values, given as the
