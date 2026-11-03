@@ -34,6 +34,7 @@ export {
   NetworkError,
   NotAvailableError,
   NotFoundError,
+  OptionFunctionError,
   retryable,
   TimeoutError,
   TooManyRequestsError,

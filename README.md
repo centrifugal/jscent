@@ -193,7 +193,8 @@ it - the call's `timeout` and `signal` still end an attempt sooner.
 | `HTTPError` | the request did not reach the API method: `status`, `body`, `headers`; `UnauthorizedError` for rejected credentials |
 | `DecodeError` | the reply was not Centrifugo's - usually `apiEndpoint` points elsewhere |
 | `InvalidRequestError` | the client could tell the request is wrong and did not send it |
-| `InvalidConfigError` | the client was not created: the message names the option and the fix |
+| `InvalidConfigError` | the client refused as configured: not created, or given by `getApiEndpoint` an endpoint, or by `getBearerToken` a token, it cannot send - the message names the option and the fix |
+| `OptionFunctionError` | `getApiEndpoint` or `getBearerToken` itself threw: named by the message and `function`, its error the `cause`, which `retryable` judges |
 | `NetworkError`, `TimeoutError`, `ClosedError` | as their names say; a network error's `cause` is fetch's |
 
 All are `CentError`. Centrifugo adds error codes over time: an unknown code is

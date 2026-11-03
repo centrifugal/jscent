@@ -346,9 +346,9 @@ applied to the user's registered devices. Centrifugo PRO only.
 The options of a Client.
 
 - `apiEndpoint?: string` - The base URL of the API, "http://localhost:8000/api". Each method is sent to it plus its name, "/publish".
-- `getApiEndpoint?: () => string | Promise<string>` - Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed.
+- `getApiEndpoint?: () => string | Promise<string>` - Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed. One failing apiEndpoint's rules fails the call with InvalidConfigError, before sending; the function's own error fails it as an OptionFunctionError, its cause.
 - `apiKey?: string` - Sent as X-API-Key. Leave it and getBearerToken unset when requests are authenticated another way - mutual TLS, a proxy - or not at all.
-- `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey.
+- `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey. An empty token, or one which is not printable ASCII, fails the call with InvalidConfigError, before sending; the function's own error fails it as an OptionFunctionError, its cause.
 - `fetch?: Fetch` - The fetch sending the requests: the runtime's own by default. Pass your own - with an undici dispatcher, say, or instrumented for tracing. It is called with each request's credentials and headers, never changed.
 - `requestTimeout?: number` - Milliseconds bounding every call: 10 seconds by default. A call's own `timeout` replaces it, longer or shorter; a call's `signal` only ends it sooner, never later.
 - `headers?: Record<string, string>` - Extra headers for every request, for a proxy in front of Centrifugo. Not X-API-Key, Authorization or Content-Type. A User-Agent replaces jscent's.
@@ -708,7 +708,8 @@ came from a temporary condition, not from the request.
 Retryable are an ApiError Centrifugo marked temporary, and code 100 from
 Centrifugo versions which did not mark errors yet; a network failure; a
 timeout, also one of the caller's own signal; an HTTPError 429 or 5xx; a
-broadcast or batch partial error with at least one retryable part.
+broadcast or batch partial error with at least one retryable part; an
+OptionFunctionError whose cause is.
 
 Not retryable are the request's own errors - an unknown channel, a bad
 request, InvalidRequestError - and InvalidConfigError, ClosedError, an
@@ -922,6 +923,7 @@ Every error is a `CentError`.
   - `DecodeError`
   - `InvalidRequestError`
   - `InvalidConfigError`
+  - `OptionFunctionError`
   - `ClosedError`
   - `NetworkError`
   - `TimeoutError`
@@ -1049,7 +1051,23 @@ Centrifugo checks itself, and reports as a BadRequestError.
 
 ### `InvalidConfigError`
 
-A configuration with a mistake: the message names the option and the fix.
+A client refused as configured: at creation, or on a call, when
+getApiEndpoint returns an endpoint which fails apiEndpoint's rules or
+getBearerToken an empty token or one which is not printable ASCII. The
+message names the option and the fix. Not retryable.
+
+### `OptionFunctionError`
+
+```ts
+new OptionFunctionError(func: string, cause: unknown)
+```
+
+The call failed because a function of the client's options failed:
+getApiEndpoint or getBearerToken, which the message and `function` name.
+The function's own error is the cause, and retryable judges it: a token
+service timing out is retryable, a bug in the function is not.
+
+- `readonly function: string` - The option whose function failed: "getApiEndpoint" or "getBearerToken".
 
 ### `ClosedError`
 

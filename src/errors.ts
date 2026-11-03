@@ -191,8 +191,29 @@ export class DecodeError extends CentError {}
  */
 export class InvalidRequestError extends CentError {}
 
-/** A configuration with a mistake: the message names the option and the fix. */
+/**
+ * A client refused as configured: at creation, or on a call, when
+ * getApiEndpoint returns an endpoint which fails apiEndpoint's rules or
+ * getBearerToken an empty token or one which is not printable ASCII. The
+ * message names the option and the fix. Not retryable.
+ */
 export class InvalidConfigError extends CentError {}
+
+/**
+ * The call failed because a function of the client's options failed:
+ * getApiEndpoint or getBearerToken, which the message and `function` name.
+ * The function's own error is the cause, and retryable judges it: a token
+ * service timing out is retryable, a bug in the function is not.
+ */
+export class OptionFunctionError extends CentError {
+  /** The option whose function failed: "getApiEndpoint" or "getBearerToken". */
+  readonly function: string;
+
+  constructor(func: string, cause: unknown) {
+    super(`${func}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    this.function = func;
+  }
+}
 
 /** A call made after the client was closed. */
 export class ClosedError extends CentError {}
@@ -344,7 +365,8 @@ function failuresMessage(op: string, parts: string, rest: string, total: number,
  * Retryable are an ApiError Centrifugo marked temporary, and code 100 from
  * Centrifugo versions which did not mark errors yet; a network failure; a
  * timeout, also one of the caller's own signal; an HTTPError 429 or 5xx; a
- * broadcast or batch partial error with at least one retryable part.
+ * broadcast or batch partial error with at least one retryable part; an
+ * OptionFunctionError whose cause is.
  *
  * Not retryable are the request's own errors - an unknown channel, a bad
  * request, InvalidRequestError - and InvalidConfigError, ClosedError, an
@@ -356,6 +378,9 @@ function failuresMessage(op: string, parts: string, rest: string, total: number,
  * which already got it.
  */
 export function retryable(err: unknown): boolean {
+  if (err instanceof OptionFunctionError) {
+    return retryable(err.cause);
+  }
   if (err instanceof BroadcastFailedChannelsError) {
     return err.retryableChannels().length > 0;
   }

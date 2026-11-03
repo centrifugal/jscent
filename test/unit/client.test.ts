@@ -20,6 +20,7 @@ import {
   InvalidRequestError,
   NetworkError,
   NotFoundError,
+  OptionFunctionError,
   Pending,
   type RequestInfo,
   rawJSON,
@@ -148,8 +149,12 @@ describe('configuration', () => {
     await c.info();
     expect(fake.last.headers.get('authorization')).toBe('Bearer t2');
     const sent = fake.sent.length;
-    const err = await rejection(fake.client({ apiKey: '', getBearerToken: () => '' }).info());
-    expect(err).toBeInstanceOf(InvalidConfigError);
+    for (const bad of ['', 'a\nb', 'a\u0000b', 'tök', 42]) {
+      const err = await rejection(fake.client({ apiKey: '', getBearerToken: () => bad as string }).info());
+      expect(err).toBeInstanceOf(InvalidConfigError);
+      expect(err.message).toContain('getBearerToken');
+      expect(retryable(err)).toBe(false);
+    }
     expect(fake.sent.length).toBe(sent);
   });
 
@@ -160,7 +165,70 @@ describe('configuration', () => {
     await c.info();
     expect(fake.last.path).toBe('/one/api/info');
     addr = 'http://a/api/info';
-    expect(await rejection(c.info())).toBeInstanceOf(InvalidConfigError);
+    const sent = fake.sent.length;
+    for (const bad of ['http://a/api/info', 'localhost:8000/api', 'http://u:p@a/api', 'http://a/api?x=1']) {
+      addr = bad;
+      const err = await rejection(c.info());
+      expect(err).toBeInstanceOf(InvalidConfigError);
+      expect(err.message).toContain('getApiEndpoint');
+      expect(retryable(err)).toBe(false);
+    }
+    expect(fake.sent.length).toBe(sent);
+  });
+
+  it('on a failure as a whole, gives every channel in failed, each with that error', async () => {
+    const down = new TypeError('fetch failed');
+    const fake = new FakeCentrifugo(() => down);
+    const seen: BroadcastResult[] = [];
+    const err = await rejection(
+      fake.client().broadcastWithRetry(
+        { channels: ['a', 'b'], data: 1 },
+        {
+          maxAttempts: 2,
+          onAttemptError: (a) => {
+            seen.push(a.result);
+            return 0;
+          },
+        },
+      ),
+    );
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(seen[0]!.replied).toBe(false);
+    expect(seen[0]!.failed.map((f) => [f.channel, f.error])).toEqual([
+      ['a', seen[0]!.failed[0]!.error],
+      ['b', seen[0]!.failed[0]!.error],
+    ]);
+    expect(seen[0]!.failed[0]!.error).toBeInstanceOf(NetworkError);
+  });
+
+  it("fails a call with a function's own error as the cause, naming the function", async () => {
+    const fake = new FakeCentrifugo();
+    const bug = new TypeError('no discovery');
+    const viaEndpoint = await rejection(
+      fake
+        .client({
+          apiEndpoint: undefined,
+          getApiEndpoint: () => {
+            throw bug;
+          },
+        })
+        .info(),
+    );
+    expect(viaEndpoint).toBeInstanceOf(OptionFunctionError);
+    expect(viaEndpoint.message).toBe('getApiEndpoint: no discovery');
+    expect(viaEndpoint.cause).toBe(bug);
+    expect((viaEndpoint as OptionFunctionError).function).toBe('getApiEndpoint');
+    expect(retryable(viaEndpoint)).toBe(false);
+    // Judged by its cause: a token service timing out may succeed again.
+    const slow = new TimeoutError('token service timed out');
+    const viaToken = await rejection(
+      fake.client({ apiKey: '', getBearerToken: () => Promise.reject(slow) }).publish({ channel: 'a', data: 1 }),
+    );
+    expect(viaToken).toBeInstanceOf(OptionFunctionError);
+    expect(viaToken.message).toBe('getBearerToken: token service timed out');
+    expect(viaToken.cause).toBe(slow);
+    expect(retryable(viaToken)).toBe(true);
+    expect(fake.sent).toEqual([]);
   });
 });
 

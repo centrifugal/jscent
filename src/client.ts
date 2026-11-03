@@ -9,6 +9,7 @@ import {
   InvalidConfigError,
   InvalidRequestError,
   NetworkError,
+  OptionFunctionError,
   retryable,
   TimeoutError,
 } from './errors.ts';
@@ -153,7 +154,12 @@ export interface ClientOptions {
    * to it plus its name, "/publish".
    */
   apiEndpoint?: string;
-  /** Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed. */
+  /**
+   * Instead of apiEndpoint, returns it for each request, for addresses
+   * discovered rather than fixed. One failing apiEndpoint's rules fails the
+   * call with InvalidConfigError, before sending; the function's own error
+   * fails it as an OptionFunctionError, its cause.
+   */
   getApiEndpoint?: () => string | Promise<string>;
   /**
    * Sent as X-API-Key. Leave it and getBearerToken unset when requests are
@@ -163,7 +169,9 @@ export interface ClientOptions {
   /**
    * Returns the token sent as "Authorization: Bearer" with each request, for
    * Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token,
-   * say. Not together with apiKey.
+   * say. Not together with apiKey. An empty token, or one which is not
+   * printable ASCII, fails the call with InvalidConfigError, before sending;
+   * the function's own error fails it as an OptionFunctionError, its cause.
    */
   getBearerToken?: () => string | Promise<string>;
   /**
@@ -848,11 +856,11 @@ export class Client extends ClientMethods {
   ): Promise<string> {
     let base = this.#endpoint;
     if (this.#endpointFunc !== undefined) {
-      base = checkEndpoint(await this.#endpointFunc(), 'getApiEndpoint');
+      base = checkEndpoint(await callOption(this.#endpointFunc, 'getApiEndpoint'), 'getApiEndpoint');
     }
     const headers = { ...this.#headers };
     if (this.#tokenFunc !== undefined) {
-      const token = await this.#tokenFunc();
+      const token = await callOption(this.#tokenFunc, 'getBearerToken');
       if (typeof token !== 'string' || token === '' || !validHeaderValue(token)) {
         throw new InvalidConfigError(
           'getBearerToken returned an empty token, not a string, or one which is not printable ASCII',
@@ -923,6 +931,15 @@ function validHeaderValue(v: string): boolean {
 }
 
 /** The endpoint without a trailing slash, or InvalidConfigError naming what is wrong. */
+/** The result of a function of the options; its own error as the cause of an OptionFunctionError naming it. */
+async function callOption<T>(f: () => T | Promise<T>, name: string): Promise<T> {
+  try {
+    return await f();
+  } catch (e) {
+    throw new OptionFunctionError(name, e);
+  }
+}
+
 function checkEndpoint(addr: unknown, option: string): string {
   if (typeof addr !== 'string') {
     throw new InvalidConfigError(`${option} must be a string, not ${kindOf(addr)}`);
