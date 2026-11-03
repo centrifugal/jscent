@@ -205,7 +205,7 @@ export class InvalidConfigError extends CentError {}
  * The function's own error is the cause, and retryable judges it: a token
  * service timing out is retryable, a bug in the function is not.
  */
-export class OptionFunctionError extends CentError {
+export class FunctionError extends CentError {
   /** The option whose function failed: "getApiEndpoint" or "getBearerToken". */
   readonly function: string;
 
@@ -366,7 +366,7 @@ function failuresMessage(op: string, parts: string, rest: string, total: number,
  * Centrifugo versions which did not mark errors yet; a network failure; a
  * timeout, also one of the caller's own signal; an HTTPError 429 or 5xx; a
  * broadcast or batch partial error with at least one retryable part; an
- * OptionFunctionError whose cause is.
+ * FunctionError whose cause is.
  *
  * Not retryable are the request's own errors - an unknown channel, a bad
  * request, InvalidRequestError - and InvalidConfigError, ClosedError, an
@@ -378,7 +378,7 @@ function failuresMessage(op: string, parts: string, rest: string, total: number,
  * which already got it.
  */
 export function retryable(err: unknown): boolean {
-  if (err instanceof OptionFunctionError) {
+  if (err instanceof FunctionError) {
     return retryable(err.cause);
   }
   if (err instanceof BroadcastFailedChannelsError) {

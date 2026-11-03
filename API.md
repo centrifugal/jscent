@@ -346,11 +346,11 @@ applied to the user's registered devices. Centrifugo PRO only.
 The options of a Client.
 
 - `apiEndpoint?: string` - The base URL of the API, "http://localhost:8000/api". Each method is sent to it plus its name, "/publish".
-- `getApiEndpoint?: () => string | Promise<string>` - Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed. One failing apiEndpoint's rules fails the call with InvalidConfigError, before sending; the function's own error fails it as an OptionFunctionError, its cause.
+- `getApiEndpoint?: () => string | Promise<string>` - Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed. One failing apiEndpoint's rules fails the call with InvalidConfigError, before sending; the function's own error fails it as an FunctionError, its cause.
 - `apiKey?: string` - Sent as X-API-Key. Leave it and getBearerToken unset when requests are authenticated another way - mutual TLS, a proxy - or not at all.
-- `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey. An empty token, or one which is not printable ASCII, fails the call with InvalidConfigError, before sending; the function's own error fails it as an OptionFunctionError, its cause.
+- `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey. An empty token, or one which is not printable ASCII, fails the call with InvalidConfigError, before sending; the function's own error fails it as an FunctionError, its cause.
 - `fetch?: Fetch` - The fetch sending the requests: the runtime's own by default. Pass your own - with an undici dispatcher, say, or instrumented for tracing. It is called with each request's credentials and headers, never changed.
-- `requestTimeout?: number` - Milliseconds bounding every call: 10 seconds by default. A call's own `timeout` replaces it, longer or shorter; a call's `signal` only ends it sooner, never later.
+- `requestTimeout?: number` - Milliseconds bounding every call: 10 seconds by default, when unset; zero or less is refused, since a call cannot be left unbounded. A call's own `timeout` replaces it, longer or shorter; a call's `signal` only ends it sooner, never later.
 - `headers?: Record<string, string>` - Extra headers for every request, for a proxy in front of Centrifugo. Not X-API-Key, Authorization or Content-Type. A User-Agent replaces jscent's.
 - `onRequest?: (info: RequestInfo) => void` - Called after every HTTP request, for metrics; the call waits for it. It must not throw: what it throws rejects the call in place of its outcome.
 - `autoBatch?: AutoBatch` - Sends calls made concurrently in batches: see AutoBatch.
@@ -693,7 +693,7 @@ JSON text, sent as it is: see RawJSON.
 
 The options of one call.
 
-- `timeout?: number` - Milliseconds bounding the call - connecting, sending, the reply's headers and body - replacing requestTimeout, longer or shorter: requestTimeout when unset.
+- `timeout?: number` - Milliseconds bounding the call - connecting, sending, the reply's headers and body - replacing requestTimeout, longer or shorter: requestTimeout when unset. Zero or less is refused with InvalidRequestError: a call cannot be left unbounded, nor given no time.
 - `signal?: AbortSignal` - Aborts the call; it then throws the signal's reason, as fetch does. It only ends a call sooner: a signal which aborts later than the call's timeout, or never, does not extend it.
 
 ### `retryable`
@@ -709,7 +709,7 @@ Retryable are an ApiError Centrifugo marked temporary, and code 100 from
 Centrifugo versions which did not mark errors yet; a network failure; a
 timeout, also one of the caller's own signal; an HTTPError 429 or 5xx; a
 broadcast or batch partial error with at least one retryable part; an
-OptionFunctionError whose cause is.
+FunctionError whose cause is.
 
 Not retryable are the request's own errors - an unknown channel, a bad
 request, InvalidRequestError - and InvalidConfigError, ClosedError, an
@@ -923,7 +923,7 @@ Every error is a `CentError`.
   - `DecodeError`
   - `InvalidRequestError`
   - `InvalidConfigError`
-  - `OptionFunctionError`
+  - `FunctionError`
   - `ClosedError`
   - `NetworkError`
   - `TimeoutError`
@@ -1056,10 +1056,10 @@ getApiEndpoint returns an endpoint which fails apiEndpoint's rules or
 getBearerToken an empty token or one which is not printable ASCII. The
 message names the option and the fix. Not retryable.
 
-### `OptionFunctionError`
+### `FunctionError`
 
 ```ts
-new OptionFunctionError(func: string, cause: unknown)
+new FunctionError(func: string, cause: unknown)
 ```
 
 The call failed because a function of the client's options failed:

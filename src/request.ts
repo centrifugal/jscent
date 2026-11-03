@@ -21,7 +21,8 @@ export interface CallOptions {
   /**
    * Milliseconds bounding the call - connecting, sending, the reply's headers
    * and body - replacing requestTimeout, longer or shorter: requestTimeout
-   * when unset.
+   * when unset. Zero or less is refused with InvalidRequestError: a call
+   * cannot be left unbounded, nor given no time.
    */
   timeout?: number;
   /**

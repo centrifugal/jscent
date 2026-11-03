@@ -5,11 +5,11 @@ import {
   CentError,
   ClosedError,
   DecodeError,
+  FunctionError,
   HTTPError,
   InvalidConfigError,
   InvalidRequestError,
   NetworkError,
-  OptionFunctionError,
   retryable,
   TimeoutError,
 } from './errors.ts';
@@ -158,7 +158,7 @@ export interface ClientOptions {
    * Instead of apiEndpoint, returns it for each request, for addresses
    * discovered rather than fixed. One failing apiEndpoint's rules fails the
    * call with InvalidConfigError, before sending; the function's own error
-   * fails it as an OptionFunctionError, its cause.
+   * fails it as an FunctionError, its cause.
    */
   getApiEndpoint?: () => string | Promise<string>;
   /**
@@ -171,7 +171,7 @@ export interface ClientOptions {
    * Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token,
    * say. Not together with apiKey. An empty token, or one which is not
    * printable ASCII, fails the call with InvalidConfigError, before sending;
-   * the function's own error fails it as an OptionFunctionError, its cause.
+   * the function's own error fails it as an FunctionError, its cause.
    */
   getBearerToken?: () => string | Promise<string>;
   /**
@@ -181,7 +181,8 @@ export interface ClientOptions {
    */
   fetch?: Fetch;
   /**
-   * Milliseconds bounding every call: 10 seconds by default. A call's own
+   * Milliseconds bounding every call: 10 seconds by default, when unset; zero
+   * or less is refused, since a call cannot be left unbounded. A call's own
    * `timeout` replaces it, longer or shorter; a call's `signal` only ends it
    * sooner, never later.
    */
@@ -801,8 +802,12 @@ export class Client extends ClientMethods {
     if (timeout === undefined) {
       return performance.now() + this.#requestTimeout;
     }
-    if (typeof timeout !== 'number' || !Number.isFinite(timeout) || timeout < 0) {
-      throw new InvalidRequestError('timeout must be a non-negative number of milliseconds');
+    // Zero is refused, not taken as "no timeout" or "no time": leave timeout
+    // unset for requestTimeout.
+    if (typeof timeout !== 'number' || !Number.isFinite(timeout) || timeout <= 0) {
+      throw new InvalidRequestError(
+        'timeout must be a positive number of milliseconds; leave it unset for requestTimeout',
+      );
     }
     return performance.now() + timeout;
   }
@@ -931,12 +936,12 @@ function validHeaderValue(v: string): boolean {
 }
 
 /** The endpoint without a trailing slash, or InvalidConfigError naming what is wrong. */
-/** The result of a function of the options; its own error as the cause of an OptionFunctionError naming it. */
+/** The result of a function of the options; its own error as the cause of an FunctionError naming it. */
 async function callOption<T>(f: () => T | Promise<T>, name: string): Promise<T> {
   try {
     return await f();
   } catch (e) {
-    throw new OptionFunctionError(name, e);
+    throw new FunctionError(name, e);
   }
 }
 

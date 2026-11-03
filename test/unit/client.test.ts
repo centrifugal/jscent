@@ -14,13 +14,13 @@ import {
   command,
   DecodeError,
   exponentialBackoff,
+  FunctionError,
   HTTPError,
   InternalError,
   InvalidConfigError,
   InvalidRequestError,
   NetworkError,
   NotFoundError,
-  OptionFunctionError,
   Pending,
   type RequestInfo,
   rawJSON,
@@ -214,17 +214,17 @@ describe('configuration', () => {
         })
         .info(),
     );
-    expect(viaEndpoint).toBeInstanceOf(OptionFunctionError);
+    expect(viaEndpoint).toBeInstanceOf(FunctionError);
     expect(viaEndpoint.message).toBe('getApiEndpoint: no discovery');
     expect(viaEndpoint.cause).toBe(bug);
-    expect((viaEndpoint as OptionFunctionError).function).toBe('getApiEndpoint');
+    expect((viaEndpoint as FunctionError).function).toBe('getApiEndpoint');
     expect(retryable(viaEndpoint)).toBe(false);
     // Judged by its cause: a token service timing out may succeed again.
     const slow = new TimeoutError('token service timed out');
     const viaToken = await rejection(
       fake.client({ apiKey: '', getBearerToken: () => Promise.reject(slow) }).publish({ channel: 'a', data: 1 }),
     );
-    expect(viaToken).toBeInstanceOf(OptionFunctionError);
+    expect(viaToken).toBeInstanceOf(FunctionError);
     expect(viaToken.message).toBe('getBearerToken: token service timed out');
     expect(viaToken.cause).toBe(slow);
     expect(retryable(viaToken)).toBe(true);
@@ -495,11 +495,17 @@ describe('errors', () => {
     const call = fake.client().info(undefined, { signal: ac.signal });
     ac.abort(new Error('stop'));
     expect((await rejection(call)).message).toBe('stop');
-    // No time left: not sent.
+    // Zero and negative timeouts are refused, not sent: unset is requestTimeout.
     const before = fake.sent.length;
-    expect(await rejection(fake.client().info(undefined, { timeout: 0 }))).toBeInstanceOf(TimeoutError);
+    for (const timeout of [0, -1, Number.NaN]) {
+      const err = await rejection(fake.client().info(undefined, { timeout }));
+      expect(err).toBeInstanceOf(InvalidRequestError);
+      expect(err.message).toContain('leave it unset for requestTimeout');
+    }
+    await expect(fake.client().broadcastWithRetry({ channels: ['a'], data: 1 }, { timeout: 0 })).rejects.toBeInstanceOf(
+      InvalidRequestError,
+    );
     expect(fake.sent.length).toBe(before);
-    expect(await rejection(fake.client().info(undefined, { timeout: -1 }))).toBeInstanceOf(InvalidRequestError);
   });
 
   it('bounds every call by requestTimeout, which a timeout replaces and a signal only shortens', async () => {
