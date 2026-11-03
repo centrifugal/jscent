@@ -197,7 +197,10 @@ describe('Centrifugo PRO', () => {
     try {
       const publish = (getBearerToken: () => string | Promise<string>) =>
         new Client({ apiEndpoint: ADDR, getBearerToken }).publish({ channel: unique(), data: {} });
-      const tokens = new token.ApiTokens({ key, claims: { audience: 'centrifugo-api', scope: ['centrifugo:api'] } });
+      const tokens = new token.ApiTokenSource({
+        key,
+        claims: { audience: 'centrifugo-api', scope: ['centrifugo:api'] },
+      });
       await publish(tokens.token);
       const expiresAt = new Date(Date.now() + 60_000);
       const refused = [

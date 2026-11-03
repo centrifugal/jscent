@@ -168,7 +168,7 @@ export interface ClientOptions {
   apiKey?: string;
   /**
    * Returns the token sent as "Authorization: Bearer" with each request, for
-   * Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token,
+   * Centrifugo PRO's JWKS authentication of the API - an ApiTokenSource's token,
    * say. Not together with apiKey. An empty token, or one which is not
    * printable ASCII, fails the call with InvalidConfigError, before sending;
    * the function's own error fails it as a FunctionError, its cause.

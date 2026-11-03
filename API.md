@@ -348,7 +348,7 @@ The options of a Client.
 - `apiEndpoint?: string` - The base URL of the API, "http://localhost:8000/api". Each method is sent to it plus its name, "/publish".
 - `getApiEndpoint?: () => string | Promise<string>` - Instead of apiEndpoint, returns it for each request, for addresses discovered rather than fixed. One failing apiEndpoint's rules fails the call with InvalidConfigError, before sending; the function's own error fails it as a FunctionError, its cause.
 - `apiKey?: string` - Sent as X-API-Key. Leave it and getBearerToken unset when requests are authenticated another way - mutual TLS, a proxy - or not at all.
-- `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey. An empty token, or one which is not printable ASCII, fails the call with InvalidConfigError, before sending; the function's own error fails it as a FunctionError, its cause.
+- `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokenSource's token, say. Not together with apiKey. An empty token, or one which is not printable ASCII, fails the call with InvalidConfigError, before sending; the function's own error fails it as a FunctionError, its cause.
 - `fetch?: Fetch` - The fetch sending the requests: the runtime's own by default. Pass your own - with an undici dispatcher, say, or instrumented for tracing. It is called with each request's credentials and headers, never changed.
 - `requestTimeout?: number` - Milliseconds bounding every call: 10 seconds by default, when unset; zero or less is refused, since a call cannot be left unbounded. A call's own `timeout` replaces it, longer or shorter; a call's `signal` only ends it sooner, never later.
 - `headers?: Record<string, string>` - Extra headers for every request, for a proxy in front of Centrifugo. Not X-API-Key, Authorization or Content-Type. A User-Agent replaces jscent's.
@@ -1365,7 +1365,7 @@ connection and subscription tokens users hold:
 - `scope?: readonly string[]` - The "scope" claim, its scopes joined by spaces: http_api.jwks.scope is one of them.
 - `issuer?: string` - The "iss" claim: http_api.jwks.issuer.
 - `subject?: string` - The "sub" claim: who calls the API, for the application's own logs.
-- `expiresAt?: Date` - When the token expires: required, best minutes ahead. Centrifugo PRO would accept a token without "exp" for as long as its key is published, so api never signs one. ApiTokens sets it itself.
+- `expiresAt?: Date` - When the token expires: required, best minutes ahead. Centrifugo PRO would accept a token without "exp" for as long as its key is published, so api never signs one. ApiTokenSource sets it itself.
 - `issuedAt?: Date` - The "iat" claim; now when unset.
 - `id?: string` - The "jti" claim.
 
@@ -1393,7 +1393,7 @@ function api(key: Key, claims: ApiClaims): Promise<string>;
 
 A token for Centrifugo PRO's server API with claims, signed with key - an
 asymmetric key with an ID, published by jwks: Centrifugo PRO finds it by the
-"kid". See ApiClaims for keeping it apart from client tokens, and ApiTokens
+"kid". See ApiClaims for keeping it apart from client tokens, and ApiTokenSource
 for one to send with every call.
 
 ### `jwks`
@@ -1416,10 +1416,10 @@ Publish the keys of client tokens and of Centrifugo PRO's server API tokens
 at separate endpoints: a token signed with any key of a set passes
 Centrifugo's signature check.
 
-### `ApiTokens`
+### `ApiTokenSource`
 
 ```ts
-new ApiTokens(options: { claims: ApiClaims; key?: Key; currentKey?: () => Key | Promise<Key>; /** Milliseconds a token is valid: 5 minutes by default. */ ttl?: number; })
+new ApiTokenSource(options: { claims: ApiClaims; key?: Key; currentKey?: () => Key | Promise<Key>; /** Milliseconds a token is valid: 5 minutes by default. */ ttl?: number; })
 ```
 
 Issues the tokens a Client sends to Centrifugo PRO: its token method is the
@@ -1427,11 +1427,11 @@ client's getBearerToken. It signs a token with api and reuses it for half
 its lifetime, so a token sent has at least half of it left.
 
 ```ts
-const tokens = new ApiTokens({
+const source = new ApiTokenSource({
   key: apiKey,   // its own key, not the client tokens'
   claims: { audience: 'centrifugo-api', scope: ['centrifugo:api'] },
 });
-const client = new Client({ apiEndpoint, getBearerToken: tokens.token });
+const client = new Client({ apiEndpoint, getBearerToken: source.token });
 ```
 
 currentKey, when set, returns the key to sign each new token with instead of
@@ -1440,7 +1440,7 @@ JWKS before it signs: Centrifugo PRO refuses a token whose key it can't
 find. claims must leave expiresAt and issuedAt unset: the tokens are issued
 when needed and expire ttl milliseconds later (5 minutes by default).
 
-- `readonly token: () => Promise<string>` - A token valid for at least half of ttl, signing a new one when the previous one has less left. Bound to its ApiTokens: pass it on as it is. Concurrent calls share one signing.
+- `readonly token: () => Promise<string>` - A token valid for at least half of ttl, signing a new one when the previous one has less left. Bound to its ApiTokenSource: pass it on as it is. Concurrent calls share one signing.
 
 ## jscent/endpoints
 

@@ -367,7 +367,7 @@ export interface ApiClaims {
   /**
    * When the token expires: required, best minutes ahead. Centrifugo PRO would
    * accept a token without "exp" for as long as its key is published, so api
-   * never signs one. ApiTokens sets it itself.
+   * never signs one. ApiTokenSource sets it itself.
    */
   expiresAt?: Date;
   /** The "iat" claim; now when unset. */
@@ -479,7 +479,7 @@ export async function subscription(key: Key, claims: SubscriptionClaims): Promis
 /**
  * A token for Centrifugo PRO's server API with claims, signed with key - an
  * asymmetric key with an ID, published by jwks: Centrifugo PRO finds it by the
- * "kid". See ApiClaims for keeping it apart from client tokens, and ApiTokens
+ * "kid". See ApiClaims for keeping it apart from client tokens, and ApiTokenSource
  * for one to send with every call.
  */
 export async function api(key: Key, claims: ApiClaims): Promise<string> {
@@ -562,11 +562,11 @@ export function jwks(...keys: Key[]): string {
  * its lifetime, so a token sent has at least half of it left.
  *
  * ```ts
- * const tokens = new ApiTokens({
+ * const source = new ApiTokenSource({
  *   key: apiKey,   // its own key, not the client tokens'
  *   claims: { audience: 'centrifugo-api', scope: ['centrifugo:api'] },
  * });
- * const client = new Client({ apiEndpoint, getBearerToken: tokens.token });
+ * const client = new Client({ apiEndpoint, getBearerToken: source.token });
  * ```
  *
  * currentKey, when set, returns the key to sign each new token with instead of
@@ -575,7 +575,7 @@ export function jwks(...keys: Key[]): string {
  * find. claims must leave expiresAt and issuedAt unset: the tokens are issued
  * when needed and expire ttl milliseconds later (5 minutes by default).
  */
-export class ApiTokens {
+export class ApiTokenSource {
   readonly #claims: ApiClaims;
   readonly #key: Key | undefined;
   readonly #currentKey: (() => Key | Promise<Key>) | undefined;
@@ -590,20 +590,25 @@ export class ApiTokens {
     /** Milliseconds a token is valid: 5 minutes by default. */
     ttl?: number;
   }) {
-    checkKeys(options, ['claims', 'key', 'currentKey', 'ttl'], 'ApiTokens option', (m) => new TypeError(`token: ${m}`));
+    checkKeys(
+      options,
+      ['claims', 'key', 'currentKey', 'ttl'],
+      'ApiTokenSource option',
+      (m) => new TypeError(`token: ${m}`),
+    );
     const { claims, key, currentKey, ttl = 300_000 } = options;
     checkKeys(claims, API_CLAIMS, 'API token claim', (m) => new TypeError(`token: ${m}`), {
       ...WIRE_NAMES,
       sub: 'subject',
     });
     if ((key === undefined) === (currentKey === undefined)) {
-      throw new TypeError('token: ApiTokens takes key or currentKey, one of them');
+      throw new TypeError('token: ApiTokenSource takes key or currentKey, one of them');
     }
     if (claims.expiresAt !== undefined || claims.issuedAt !== undefined) {
-      throw new TypeError('token: ApiTokens sets expiresAt and issuedAt itself: leave them unset, and set ttl');
+      throw new TypeError('token: ApiTokenSource sets expiresAt and issuedAt itself: leave them unset, and set ttl');
     }
     if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
-      throw new TypeError('token: ApiTokens ttl must be a positive number of milliseconds');
+      throw new TypeError('token: ApiTokenSource ttl must be a positive number of milliseconds');
     }
     this.#claims = claims;
     this.#key = key;
@@ -613,7 +618,7 @@ export class ApiTokens {
 
   /**
    * A token valid for at least half of ttl, signing a new one when the
-   * previous one has less left. Bound to its ApiTokens: pass it on as it is.
+   * previous one has less left. Bound to its ApiTokenSource: pass it on as it is.
    * Concurrent calls share one signing.
    */
   readonly token = (): Promise<string> => {

@@ -183,14 +183,14 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
   it('issues API tokens, reused for half their TTL', async () => {
     const key = (await token.Key.ed25519(new Uint8Array(32).fill(3))).withKeyId('api');
     const claims = { audience: 'centrifugo-api', scope: ['centrifugo:api', 'b'] };
-    const tokens = new token.ApiTokens({ claims, key });
+    const tokens = new token.ApiTokenSource({ claims, key });
     const t = await tokens.token();
     expect(await tokens.token()).toBe(t);
     const c = part(t, 1);
     expect(c.scope).toBe('centrifugo:api b');
     expect(c.aud).toBe('centrifugo-api');
     expect(c.exp - c.iat).toBe(300);
-    const short = new token.ApiTokens({ claims, currentKey: () => key, ttl: 2000 });
+    const short = new token.ApiTokenSource({ claims, currentKey: () => key, ttl: 2000 });
     const first = await short.token();
     await new Promise((r) => setTimeout(r, 1100));
     expect(await short.token()).not.toBe(first);
@@ -206,10 +206,10 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
     await expect(token.api(key, { audience: 'a' })).rejects.toThrow('expiresAt');
     await expect(token.api(key, { scope: [''], expiresAt: exp })).rejects.toThrow('scope');
     await expect(token.api(key, { scope: ['a b'], expiresAt: exp })).rejects.toThrow('scope');
-    expect(() => new token.ApiTokens({ claims: { audience: 'a', expiresAt: exp }, key })).toThrow();
-    expect(() => new token.ApiTokens({ claims })).toThrow();
-    expect(() => new token.ApiTokens({ claims, key, currentKey: () => key })).toThrow();
-    expect(() => new token.ApiTokens({ claims, key, ttl: -1 })).toThrow();
+    expect(() => new token.ApiTokenSource({ claims: { audience: 'a', expiresAt: exp }, key })).toThrow();
+    expect(() => new token.ApiTokenSource({ claims })).toThrow();
+    expect(() => new token.ApiTokenSource({ claims, key, currentKey: () => key })).toThrow();
+    expect(() => new token.ApiTokenSource({ claims, key, ttl: -1 })).toThrow();
   });
 
   it('signs shared poll keys', async () => {
