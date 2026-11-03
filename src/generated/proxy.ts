@@ -11,12 +11,13 @@ import {
   MAP,
   MESSAGE,
   PAYLOAD,
+  PRESENCE,
   SINGLE,
   STRING,
 } from '../wire.ts';
 
 // Every kind is listed for the descriptors below; some may go unused.
-void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, SINGLE, STRING];
+void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, PRESENCE, SINGLE, STRING];
 
 /**
  * FilterNode is a node of a publication tags filter expression. A leaf node

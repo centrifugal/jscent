@@ -20,6 +20,11 @@ export const MESSAGE = 5;
 export const BOOL_VALUE = 6;
 /** @internal Int32Value: absent, or {"value": int}. */
 export const INT32_VALUE = 7;
+/**
+ * @internal A presence wrapper - a message Centrifugo reads by whether it is
+ * there, as device_update's updates: sent whenever set, even empty.
+ */
+export const PRESENCE = 8;
 
 /** @internal */
 export const SINGLE = 0;
@@ -158,7 +163,12 @@ function encodeValue(f: Compiled, v: unknown, where: string, keep: boolean): str
         throw new InvalidRequestError(`${where} must be an integer, not ${kindOf(v)}`);
       }
       return `{"value":${v}}`;
+    case PRESENCE:
+      return encode(f.of!(), v, where);
     default: {
+      // A message with nothing set is not sent, as a field at its zero value
+      // is not: Centrifugo reads some messages by whether they are there, and
+      // refuses an empty limit_strategy which it accepts absent.
       const json = encode(f.of!(), v, where);
       return json === '{}' && !keep ? undefined : json;
     }

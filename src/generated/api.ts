@@ -15,12 +15,13 @@ import {
   MAP,
   MESSAGE,
   PAYLOAD,
+  PRESENCE,
   SINGLE,
   STRING,
 } from '../wire.ts';
 
 // Every kind is listed for the descriptors below; some may go unused.
-void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, SINGLE, STRING];
+void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, PRESENCE, SINGLE, STRING];
 
 /** PublishRequest publishes data into a channel. */
 export interface PublishRequest {
@@ -1225,11 +1226,11 @@ export interface DeviceUpdateRequest {
 export const DeviceUpdateRequestFields: Fields = [
   ['ids', STRING, LIST],
   ['users', STRING, LIST],
-  ['user_update', MESSAGE, SINGLE, () => DeviceUserUpdateFields],
-  ['meta_update', MESSAGE, SINGLE, () => DeviceMetaUpdateFields],
+  ['user_update', PRESENCE, SINGLE, () => DeviceUserUpdateFields],
+  ['meta_update', PRESENCE, SINGLE, () => DeviceMetaUpdateFields],
   ['topics_update', MESSAGE, SINGLE, () => DeviceTopicsUpdateFields],
-  ['timezone_update', MESSAGE, SINGLE, () => DeviceTimezoneUpdateFields],
-  ['locale_update', MESSAGE, SINGLE, () => DeviceLocaleUpdateFields],
+  ['timezone_update', PRESENCE, SINGLE, () => DeviceTimezoneUpdateFields],
+  ['locale_update', PRESENCE, SINGLE, () => DeviceLocaleUpdateFields],
 ];
 
 /**
