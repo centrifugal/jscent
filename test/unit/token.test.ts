@@ -71,6 +71,7 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
         meta: { plan: 'pro' },
         caps: [{ channels: ['news'], allow: ['sub'] }],
         labels: { region: 'eu' },
+        profile: 'chat',
       }),
       1,
     );
@@ -86,7 +87,9 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
       'meta',
       'caps',
       'labels',
+      'profile',
     ]);
+    expect(c.profile).toBe('chat');
     expect(c.subs).toEqual({ ch: { data: {}, override: { presence: { value: true } } } });
     const s = part(
       await token.subscription(key, {

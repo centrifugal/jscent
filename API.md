@@ -1259,6 +1259,7 @@ The claims of a connection token. See https://centrifugal.dev/docs/server/authen
 - `meta?: unknown` - Custom data attached to the connection. Not visible to other clients - Centrifugo never sends it - but the token carries it, visible to the user owning the token: put nothing in it that user must not see.
 - `caps?: readonly ChannelsCapability[]` - Capabilities granting the connection operations in channels. Centrifugo PRO only.
 - `labels?: Record<string, string>` - The connection's client labels: for metrics, targeted server API calls and CEL expressions. Centrifugo PRO only.
+- `profile?: string` - The dictionary compression profile of the connection: it overrides the profile the client declared. Centrifugo PRO only.
 
 ### interface `SubscriptionClaims`
 

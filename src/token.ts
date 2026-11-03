@@ -288,6 +288,11 @@ export interface ConnectionClaims {
    * and CEL expressions. Centrifugo PRO only.
    */
   labels?: Record<string, string>;
+  /**
+   * The dictionary compression profile of the connection: it overrides the
+   * profile the client declared. Centrifugo PRO only.
+   */
+  profile?: string;
 }
 
 /** The claims of a subscription token. See https://centrifugal.dev/docs/server/channel_token_auth. */
@@ -382,6 +387,7 @@ const CONNECTION_CLAIMS = [
   'meta',
   'caps',
   'labels',
+  'profile',
 ] as const;
 const SUBSCRIPTION_CLAIMS = [
   ...COMMON_CLAIMS,
@@ -437,6 +443,7 @@ export async function connection(key: Key, claims: ConnectionClaims): Promise<st
   if (c.labels && Object.keys(c.labels).length > 0) {
     p.push(`"labels":${encode([['labels', 0, 2]], { labels: c.labels }, '').slice('{"labels":'.length, -1)}`);
   }
+  stringClaim(p, 'profile', c.profile);
   return sign(key, p);
 }
 
