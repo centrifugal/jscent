@@ -112,9 +112,17 @@ pre-release part, `v1.0.0-beta.1`, publishes under npm's `next` tag.
   proxy results: a typo or a snake_case name would otherwise be dropped
   without a word.
 - **Milliseconds**, not seconds: JavaScript's timeouts are milliseconds.
-- **Every request's fields are optional in its type.** Centrifugo checks what
-  is required; the client checks only what the spec lists (a publication's
-  channel and data).
+- **Required fields are checked twice**: a required property in the types,
+  and a check of the value before sending (`REQUIRED` in the descriptors,
+  from the protos' "Required."), since `''`, `0` or `{}` is sent as the field
+  left out, and plain JavaScript has no type checker. A field whose empty
+  value has a meaning - `invalidateUserTokens`'s `user` - is required in the
+  types but not checked. Every other rule is Centrifugo's: the client copies
+  only the "Required." marks and the data rules of publish and broadcast.
+- **An empty message is not sent** - but for a presence wrapper
+  (`PRESENCE`: device_update's updates), sent whenever set, even empty.
+  `gen/rules.ts` finds both in the comments; `test/unit/gen.test.ts` pins
+  them.
 - **Integer fields of results are numbers even with `bigIntegers`**: the
   option is for payloads; offsets and counts stay below 2^53.
 - **No `Symbol.asyncDispose`**: it would put a lib requirement into the

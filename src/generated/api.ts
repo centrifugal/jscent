@@ -16,12 +16,13 @@ import {
   MESSAGE,
   PAYLOAD,
   PRESENCE,
+  REQUIRED,
   SINGLE,
   STRING,
 } from '../wire.ts';
 
 // Every kind is listed for the descriptors below; some may go unused.
-void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, PRESENCE, SINGLE, STRING];
+void [BOOL, BOOL_VALUE, FLOAT, INT, INT32_VALUE, LIST, MAP, MESSAGE, PAYLOAD, PRESENCE, REQUIRED, SINGLE, STRING];
 
 /** PublishRequest publishes data into a channel. */
 export interface PublishRequest {
@@ -72,7 +73,7 @@ export interface PublishRequest {
 
 /** @internal */
 export const PublishRequestFields: Fields = [
-  ['channel', STRING],
+  ['channel', STRING, REQUIRED],
   ['data', PAYLOAD],
   ['b64data', STRING],
   ['skip_history', BOOL],
@@ -147,7 +148,7 @@ export interface BroadcastRequest {
 
 /** @internal */
 export const BroadcastRequestFields: Fields = [
-  ['channels', STRING, LIST],
+  ['channels', STRING, LIST | REQUIRED],
   ['data', PAYLOAD],
   ['b64data', STRING],
   ['skip_history', BOOL],
@@ -258,7 +259,7 @@ export interface SubscribeRequest {
 
 /** @internal */
 export const SubscribeRequestFields: Fields = [
-  ['channel', STRING],
+  ['channel', STRING, REQUIRED],
   ['user', STRING],
   ['expire_at', INT],
   ['info', PAYLOAD],
@@ -338,7 +339,7 @@ export interface UnsubscribeRequest {
 
 /** @internal */
 export const UnsubscribeRequestFields: Fields = [
-  ['channel', STRING],
+  ['channel', STRING, REQUIRED],
   ['user', STRING],
   ['client', STRING],
   ['session', STRING],
@@ -429,7 +430,7 @@ export interface PresenceRequest {
 }
 
 /** @internal */
-export const PresenceRequestFields: Fields = [['channel', STRING]];
+export const PresenceRequestFields: Fields = [['channel', STRING, REQUIRED]];
 
 /** ClientInfo describes a client connection. */
 export interface ClientInfo {
@@ -471,7 +472,7 @@ export interface PresenceStatsRequest {
 }
 
 /** @internal */
-export const PresenceStatsRequestFields: Fields = [['channel', STRING]];
+export const PresenceStatsRequestFields: Fields = [['channel', STRING, REQUIRED]];
 
 /** PresenceStatsResult is the result of a presence stats call. */
 export interface PresenceStatsResult {
@@ -522,7 +523,7 @@ export interface HistoryRequest {
 
 /** @internal */
 export const HistoryRequestFields: Fields = [
-  ['channel', STRING],
+  ['channel', STRING, REQUIRED],
   ['limit', INT],
   ['since', MESSAGE, SINGLE, () => StreamPositionFields],
   ['reverse', BOOL],
@@ -576,7 +577,7 @@ export interface HistoryRemoveRequest {
 }
 
 /** @internal */
-export const HistoryRemoveRequestFields: Fields = [['channel', STRING]];
+export const HistoryRemoveRequestFields: Fields = [['channel', STRING, REQUIRED]];
 
 /**
  * HistoryRemoveResult is the result of a history remove call. Empty at the
@@ -940,7 +941,7 @@ export interface UpdateUserStatusRequest {
 
 /** @internal */
 export const UpdateUserStatusRequestFields: Fields = [
-  ['users', STRING, LIST],
+  ['users', STRING, LIST | REQUIRED],
   ['state', STRING],
 ];
 
@@ -960,7 +961,7 @@ export interface GetUserStatusRequest {
 }
 
 /** @internal */
-export const GetUserStatusRequestFields: Fields = [['users', STRING, LIST]];
+export const GetUserStatusRequestFields: Fields = [['users', STRING, LIST | REQUIRED]];
 
 /**
  * GetUserStatusResult is the result of a get user status call.
@@ -1007,7 +1008,7 @@ export interface DeleteUserStatusRequest {
 }
 
 /** @internal */
-export const DeleteUserStatusRequestFields: Fields = [['users', STRING, LIST]];
+export const DeleteUserStatusRequestFields: Fields = [['users', STRING, LIST | REQUIRED]];
 
 /**
  * DeleteUserStatusResult is the result of a delete user status call. Empty
@@ -1036,7 +1037,7 @@ export interface BlockUserRequest {
 /** @internal */
 export const BlockUserRequestFields: Fields = [
   ['expire_at', INT],
-  ['user', STRING],
+  ['user', STRING, REQUIRED],
 ];
 
 /**
@@ -1055,7 +1056,7 @@ export interface UnblockUserRequest {
 }
 
 /** @internal */
-export const UnblockUserRequestFields: Fields = [['user', STRING]];
+export const UnblockUserRequestFields: Fields = [['user', STRING, REQUIRED]];
 
 /**
  * UnblockUserResult is the result of an unblock user call. Empty at the
@@ -1084,7 +1085,7 @@ export interface RevokeTokenRequest {
 /** @internal */
 export const RevokeTokenRequestFields: Fields = [
   ['expire_at', INT],
-  ['uid', STRING],
+  ['uid', STRING, REQUIRED],
 ];
 
 /**
@@ -1187,9 +1188,9 @@ export interface DeviceRegisterRequest {
 /** @internal */
 export const DeviceRegisterRequestFields: Fields = [
   ['id', STRING],
-  ['provider', STRING],
-  ['token', STRING],
-  ['platform', STRING],
+  ['provider', STRING, REQUIRED],
+  ['token', STRING, REQUIRED],
+  ['platform', STRING, REQUIRED],
   ['user', STRING],
   ['meta', STRING, MAP],
   ['topics', STRING, LIST],
@@ -1299,7 +1300,7 @@ export interface DeviceTopicsUpdate {
 
 /** @internal */
 export const DeviceTopicsUpdateFields: Fields = [
-  ['op', STRING],
+  ['op', STRING, REQUIRED],
   ['topics', STRING, LIST],
 ];
 
@@ -1493,8 +1494,8 @@ export interface DeviceTopicUpdateRequest {
 
 /** @internal */
 export const DeviceTopicUpdateRequestFields: Fields = [
-  ['device_id', STRING],
-  ['op', STRING],
+  ['device_id', STRING, REQUIRED],
+  ['op', STRING, REQUIRED],
   ['topics', STRING, LIST],
   ['user', STRING],
 ];
@@ -1518,7 +1519,7 @@ export interface UserTopicUpdateRequest {
 /** @internal */
 export const UserTopicUpdateRequestFields: Fields = [
   ['user', STRING],
-  ['op', STRING],
+  ['op', STRING, REQUIRED],
   ['topics', STRING, LIST],
 ];
 
@@ -1822,7 +1823,7 @@ export interface FcmPushNotification {
 }
 
 /** @internal */
-export const FcmPushNotificationFields: Fields = [['message', PAYLOAD]];
+export const FcmPushNotificationFields: Fields = [['message', PAYLOAD, REQUIRED]];
 
 /** HmsPushNotification is a notification for HMS. Centrifugo PRO only. */
 export interface HmsPushNotification {
@@ -1831,7 +1832,7 @@ export interface HmsPushNotification {
 }
 
 /** @internal */
-export const HmsPushNotificationFields: Fields = [['message', PAYLOAD]];
+export const HmsPushNotificationFields: Fields = [['message', PAYLOAD, REQUIRED]];
 
 /** ApnsPushNotification is a notification for APNs. Centrifugo PRO only. */
 export interface ApnsPushNotification {
@@ -1844,7 +1845,7 @@ export interface ApnsPushNotification {
 /** @internal */
 export const ApnsPushNotificationFields: Fields = [
   ['headers', STRING, MAP],
-  ['payload', PAYLOAD],
+  ['payload', PAYLOAD, REQUIRED],
 ];
 
 /**
@@ -1867,7 +1868,7 @@ export interface WebPushPushNotification {
 /** @internal */
 export const WebPushPushNotificationFields: Fields = [
   ['headers', STRING, MAP],
-  ['payload', PAYLOAD],
+  ['payload', PAYLOAD, REQUIRED],
 ];
 
 /**
@@ -1928,8 +1929,8 @@ export interface SendPushNotificationRequest {
 
 /** @internal */
 export const SendPushNotificationRequestFields: Fields = [
-  ['recipient', MESSAGE, SINGLE, () => PushRecipientFields],
-  ['notification', MESSAGE, SINGLE, () => PushNotificationFields],
+  ['recipient', MESSAGE, SINGLE | REQUIRED, () => PushRecipientFields],
+  ['notification', MESSAGE, SINGLE | REQUIRED, () => PushNotificationFields],
   ['uid', STRING],
   ['send_at', INT],
   ['optimize_for_reliability', BOOL],
@@ -1993,8 +1994,8 @@ export interface PushTimeLimitStrategy {
 
 /** @internal */
 export const PushTimeLimitStrategyFields: Fields = [
-  ['send_after_time', STRING],
-  ['send_before_time', STRING],
+  ['send_after_time', STRING, REQUIRED],
+  ['send_before_time', STRING, REQUIRED],
   ['no_tz_send_now', BOOL],
 ];
 
@@ -2031,8 +2032,8 @@ export interface RateLimitPolicy {
 
 /** @internal */
 export const RateLimitPolicyFields: Fields = [
-  ['rate', INT],
-  ['interval_ms', INT],
+  ['rate', INT, REQUIRED],
+  ['interval_ms', INT, REQUIRED],
 ];
 
 /**
@@ -2073,9 +2074,9 @@ export interface UpdatePushStatusRequest {
 
 /** @internal */
 export const UpdatePushStatusRequestFields: Fields = [
-  ['analytics_uid', STRING],
-  ['status', STRING],
-  ['device_id', STRING],
+  ['analytics_uid', STRING, REQUIRED],
+  ['status', STRING, REQUIRED],
+  ['device_id', STRING, REQUIRED],
   ['msg_id', STRING],
 ];
 
@@ -2098,7 +2099,7 @@ export interface CancelPushRequest {
 }
 
 /** @internal */
-export const CancelPushRequestFields: Fields = [['uid', STRING]];
+export const CancelPushRequestFields: Fields = [['uid', STRING, REQUIRED]];
 
 /**
  * CancelPushResult is the result of a cancel push call. Empty at the
@@ -2164,8 +2165,8 @@ export interface MapPublishRequest {
 
 /** @internal */
 export const MapPublishRequestFields: Fields = [
-  ['channel', STRING],
-  ['key', STRING],
+  ['channel', STRING, REQUIRED],
+  ['key', STRING, REQUIRED],
   ['data', PAYLOAD],
   ['b64data', STRING],
   ['stream_data', PAYLOAD],
@@ -2222,8 +2223,8 @@ export interface MapRemoveRequest {
 
 /** @internal */
 export const MapRemoveRequestFields: Fields = [
-  ['channel', STRING],
-  ['key', STRING],
+  ['channel', STRING, REQUIRED],
+  ['key', STRING, REQUIRED],
   ['idempotency_key', STRING],
 ];
 
@@ -2296,7 +2297,7 @@ export interface MapReadStateRequest {
 
 /** @internal */
 export const MapReadStateRequestFields: Fields = [
-  ['channel', STRING],
+  ['channel', STRING, REQUIRED],
   ['cursor', STRING],
   ['limit', INT],
   ['key', STRING],
@@ -2382,7 +2383,7 @@ export interface MapReadStreamRequest {
 
 /** @internal */
 export const MapReadStreamRequestFields: Fields = [
-  ['channel', STRING],
+  ['channel', STRING, REQUIRED],
   ['since_offset', INT],
   ['since_epoch', STRING],
   ['limit', INT],
@@ -2413,7 +2414,7 @@ export interface MapStatsRequest {
 }
 
 /** @internal */
-export const MapStatsRequestFields: Fields = [['channel', STRING]];
+export const MapStatsRequestFields: Fields = [['channel', STRING, REQUIRED]];
 
 /** MapStatsResult is the result of a map stats call. */
 export interface MapStatsResult {
@@ -2431,7 +2432,7 @@ export interface MapClearRequest {
 }
 
 /** @internal */
-export const MapClearRequestFields: Fields = [['channel', STRING]];
+export const MapClearRequestFields: Fields = [['channel', STRING, REQUIRED]];
 
 /** MapClearResult is the result of a map clear call. Empty at the moment. */
 export type MapClearResult = Record<string, never>;
@@ -2467,11 +2468,11 @@ export interface SharedPollPublishRequest {
 
 /** @internal */
 export const SharedPollPublishRequestFields: Fields = [
-  ['channel', STRING],
-  ['key', STRING],
+  ['channel', STRING, REQUIRED],
+  ['key', STRING, REQUIRED],
   ['data', PAYLOAD],
   ['b64data', STRING],
-  ['version', INT],
+  ['version', INT, REQUIRED],
   ['epoch', STRING],
 ];
 

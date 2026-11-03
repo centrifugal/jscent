@@ -32,10 +32,17 @@ export const SINGLE = 0;
 export const LIST = 1;
 /** @internal */
 export const MAP = 2;
+/**
+ * @internal A flag of the shape: the field the proto marks "Required.", which
+ * must have a value - not undefined, '', 0, an empty list or a message with
+ * nothing set.
+ */
+export const REQUIRED = 4;
 
 /**
  * A field of a message, for the generated code: its wire name, kind, whether
- * it is a list or a map, and its message fields when the kind is MESSAGE.
+ * it is a list or a map - and whether it is required, REQUIRED or-ed in - and
+ * its message fields when the kind is MESSAGE.
  */
 export type FieldSpec = readonly [wire: string, kind: number, shape?: number, of?: () => Fields];
 
@@ -52,6 +59,7 @@ interface Compiled {
   wire: string;
   kind: number;
   shape: number;
+  required: boolean;
   of: (() => Fields) | undefined;
 }
 
@@ -60,7 +68,14 @@ const compiled = new WeakMap<Fields, Compiled[]>();
 function compile(fields: Fields): Compiled[] {
   let out = compiled.get(fields);
   if (out === undefined) {
-    out = fields.map(([wire, kind, shape, of]) => ({ js: camel(wire), wire, kind, shape: shape ?? SINGLE, of }));
+    out = fields.map(([wire, kind, shape = SINGLE, of]) => ({
+      js: camel(wire),
+      wire,
+      kind,
+      shape: shape & ~REQUIRED,
+      required: (shape & REQUIRED) !== 0,
+      of,
+    }));
     compiled.set(fields, out);
   }
   return out;
@@ -71,9 +86,14 @@ function compile(fields: Fields): Compiled[] {
  * or map, a message with nothing set, undefined - left out, payloads encoded
  * apart and spliced in. `path` names the message in error messages.
  *
+ * A required field left out - unset, or at its zero value, which is not sent
+ * either - is an InvalidRequestError naming its path. A message which is not
+ * strict - an optional one in another, which is not sent when nothing in it is
+ * set - is checked only when something in it is set.
+ *
  * @internal
  */
-export function encode(fields: Fields, obj: unknown, path: string): string {
+export function encode(fields: Fields, obj: unknown, path: string, strict = true): string {
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
     throw new InvalidRequestError(`${path || 'the request'} must be an object, not ${kindOf(obj)}`);
   }
@@ -90,12 +110,14 @@ export function encode(fields: Fields, obj: unknown, path: string): string {
       );
     }
   }
+  let missing: string | undefined;
   for (const f of known) {
     const v = record[f.js];
+    const where = path ? `${path}.${f.js}` : f.js;
     if (v === undefined) {
+      missing ??= f.required ? where : undefined;
       continue;
     }
-    const where = path ? `${path}.${f.js}` : f.js;
     let json: string | undefined;
     if (f.shape === LIST) {
       if (!Array.isArray(v)) {
@@ -117,7 +139,12 @@ export function encode(fields: Fields, obj: unknown, path: string): string {
     }
     if (json !== undefined) {
       parts.push(`${JSON.stringify(f.wire)}:${json}`);
+    } else if (f.required) {
+      missing ??= where;
     }
+  }
+  if (missing !== undefined && (strict || parts.length > 0)) {
+    throw new InvalidRequestError(`${missing} is required`);
   }
   return `{${parts.join(',')}}`;
 }
@@ -168,8 +195,9 @@ function encodeValue(f: Compiled, v: unknown, where: string, keep: boolean): str
     default: {
       // A message with nothing set is not sent, as a field at its zero value
       // is not: Centrifugo reads some messages by whether they are there, and
-      // refuses an empty limit_strategy which it accepts absent.
-      const json = encode(f.of!(), v, where);
+      // refuses an empty limit_strategy which it accepts absent. One in a list
+      // or map is sent whatever it holds, and so checked whatever it holds.
+      const json = encode(f.of!(), v, where, keep);
       return json === '{}' && !keep ? undefined : json;
     }
   }

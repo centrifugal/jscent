@@ -54,6 +54,30 @@ A batch and commands have the same methods as the client:
 `batch.publish({ ... })`, `command.publish({ ... })`. jscent is an ES module;
 CommonJS code loads it with `require('jscent')` on Node.js 22.12 or newer.
 
+## Requests
+
+A request is a plain object of its fields, named as in Centrifugo's docs in
+camelCase: `skipHistory` for `skip_history`. A field jscent does not know -
+a typo, or a snake_case name - rejects with `InvalidRequestError` rather than
+being dropped. The fields Centrifugo requires are required properties, and are
+also checked for a value before sending, since `''`, `0` or an empty object
+would go out as the field left out: a call without one rejects with
+`InvalidRequestError` naming its path - `invalid send_push_notification
+request: limitStrategy.rateLimit.policies[0].rate is required` - and nothing
+is sent. A field whose empty value means something is not checked:
+`invalidateUserTokens({ user: '' })` invalidates the tokens of anonymous
+users.
+
+A nested message with nothing set is left out, as an empty field is. The
+updates of `deviceUpdate` are the exception: each is sent whenever it is set,
+even empty - an empty `userUpdate` detaches the devices from their user, an
+empty `timezoneUpdate`, `localeUpdate` or `metaUpdate` clears the setting -
+and one left out changes nothing.
+
+```ts
+await client.deviceUpdate({ ids: [deviceId], userUpdate: { user: '' }, timezoneUpdate: { timezone: '' } });
+```
+
 ## Payloads
 
 `data`, `info`, `meta` and the other payloads are JSON values, given as the

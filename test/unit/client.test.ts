@@ -29,6 +29,19 @@ import {
   UnauthorizedError,
   UnknownChannelError,
 } from '../../src/index.ts';
+import {
+  BOOL,
+  BOOL_VALUE,
+  type Fields,
+  FLOAT,
+  INT,
+  INT32_VALUE,
+  LIST,
+  MAP,
+  PAYLOAD,
+  REQUIRED,
+  STRING,
+} from '../../src/wire.ts';
 import { FakeCentrifugo, json, rejection } from './fake.ts';
 
 describe('configuration', () => {
@@ -151,10 +164,47 @@ describe('configuration', () => {
   });
 });
 
+/** A message with every field set to a value which is not its zero, nested messages two deep. */
+function fill(fields: Fields, depth: number): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [wire, kind, shape = 0, of] of fields) {
+    let v: unknown;
+    switch (kind) {
+      case STRING:
+        v = 'x';
+        break;
+      case BOOL:
+      case BOOL_VALUE:
+        v = true;
+        break;
+      case INT:
+      case INT32_VALUE:
+        v = 1;
+        break;
+      case FLOAT:
+        v = 1.5;
+        break;
+      case PAYLOAD:
+        v = { x: 1 };
+        break;
+      default:
+        if (depth >= 2) {
+          continue;
+        }
+        v = fill(of!(), depth + 1);
+    }
+    const s = shape & ~REQUIRED;
+    out[wire.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())] = s === LIST ? [v] : s === MAP ? { k: v } : v;
+  }
+  return out;
+}
+
 describe('every method', () => {
   const methods = Object.keys(api.METHODS).filter((m) => m !== 'batch');
   const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-  const requestFor = (method: string) => (method === 'publish' ? { channel: 'ch', data: 1 } : {});
+  // Every field filled, so that the required-field checks let it through and
+  // every field is seen to be sent.
+  const requestFor = (method: string) => fill(api.METHODS[method]!.request, 0);
   type Methods = Record<string, (r: object) => unknown>;
 
   it('is a method of the client - but broadcast, written by hand - of a batch and of command', () => {
@@ -180,6 +230,9 @@ describe('every method', () => {
       const req = requestFor(method);
       const res = await (c as unknown as Record<string, (r: object) => Promise<unknown>>)[camel(method)]!(req);
       expect(fake.last.path).toBe(`/api/${method}`);
+      expect(Object.keys(fake.last.json as object).sort()).toEqual(
+        api.METHODS[method]!.request.map((f) => f[0]).sort(),
+      );
       expect(typeof res).toBe('object');
       const b = c.newBatch();
       const p = (b as unknown as Record<string, (r: object) => { result(): unknown }>)[camel(method)]!(req);
