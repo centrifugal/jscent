@@ -1003,11 +1003,11 @@ export const SharedPollRefreshResultItemFields: Fields = [
 
 // The values of FilterNode.op.
 /** `and`: a value of FilterNode.op, a string, which may take values no constant names too. */
-export const OP_AND = 'and';
+export const FILTER_NODE_OP_AND = 'and';
 /** `or`: a value of FilterNode.op, a string, which may take values no constant names too. */
-export const OP_OR = 'or';
+export const FILTER_NODE_OP_OR = 'or';
 /** `not`: a value of FilterNode.op, a string, which may take values no constant names too. */
-export const OP_NOT = 'not';
+export const FILTER_NODE_OP_NOT = 'not';
 
 // The values of FilterNode.cmp.
 /** `eq`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
@@ -1061,9 +1061,9 @@ export const ALLOW_PRS = 'prs';
 
 // The values of ChannelsCapability.match.
 /** `wildcard`: a value of ChannelsCapability.match, a string, which may take values no constant names too. */
-export const MATCH_WILDCARD = 'wildcard';
+export const CAPABILITY_MATCH_WILDCARD = 'wildcard';
 /** `regex`: a value of ChannelsCapability.match, a string, which may take values no constant names too. */
-export const MATCH_REGEX = 'regex';
+export const CAPABILITY_MATCH_REGEX = 'regex';
 
 // The values of MapPublishResult.keyMode.
 /** `if_new`: a value of MapPublishResult.keyMode, a string, which may take values no constant names too. */
@@ -1073,6 +1073,6 @@ export const KEY_MODE_IF_EXISTS = 'if_exists';
 
 // The values of ChannelEvent.type.
 /** `occupied`: a value of ChannelEvent.type, a string, which may take values no constant names too. */
-export const TYPE_OCCUPIED = 'occupied';
+export const CHANNEL_EVENT_TYPE_OCCUPIED = 'occupied';
 /** `vacated`: a value of ChannelEvent.type, a string, which may take values no constant names too. */
-export const TYPE_VACATED = 'vacated';
+export const CHANNEL_EVENT_TYPE_VACATED = 'vacated';

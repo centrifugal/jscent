@@ -2530,14 +2530,6 @@ export const FILTER_NODE_OP_OR = 'or';
 /** `not`: a value of FilterNode.op, a string, which may take values no constant names too. */
 export const FILTER_NODE_OP_NOT = 'not';
 
-// The values of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op.
-/** `add`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
-export const OP_ADD = 'add';
-/** `remove`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
-export const OP_REMOVE = 'remove';
-/** `set`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
-export const OP_SET = 'set';
-
 // The values of FilterNode.cmp.
 /** `eq`: a value of FilterNode.cmp, a string, which may take values no constant names too. */
 export const CMP_EQ = 'eq';
@@ -2583,6 +2575,14 @@ export const PLATFORM_IOS = 'ios';
 export const PLATFORM_ANDROID = 'android';
 /** `web`: a value of DeviceRegisterRequest.platform, a string, which may take values no constant names too. */
 export const PLATFORM_WEB = 'web';
+
+// The values of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op.
+/** `add`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
+export const OP_ADD = 'add';
+/** `remove`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
+export const OP_REMOVE = 'remove';
+/** `set`: a value of DeviceTopicsUpdate.op, DeviceTopicUpdateRequest.op and UserTopicUpdateRequest.op, a string, which may take values no constant names too. */
+export const OP_SET = 'set';
 
 // The values of UpdatePushStatusRequest.status.
 /** `delivered`: a value of UpdatePushStatusRequest.status, a string, which may take values no constant names too. */

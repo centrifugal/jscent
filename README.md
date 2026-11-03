@@ -78,13 +78,14 @@ and one left out changes nothing.
 await client.deviceUpdate({ ids: [deviceId], userUpdate: { user: '' }, timezoneUpdate: { timezone: '' } });
 ```
 
-A string field with a fixed set of values has a constant per value, named by
-the field and the value: `PROVIDER_FCM`, `PLATFORM_IOS`, `OP_ADD`,
-`STATUS_DELIVERED`, `KEY_MODE_IF_NEW`, `CMP_EQ` - and `FILTER_NODE_OP_AND`
-for `FilterNode`'s `op`, whose values differ from the topic updates'.
-`jscent/proxy` has the proxy's: `ENCODING_BINARY`, `PROTOCOL_JSON`,
-`TYPE_OCCUPIED`, `OP_AND` and the rest. The fields stay strings, so a value
-a later Centrifugo adds can be sent before jscent names it.
+A string field with a fixed set of values has a constant per value, named as
+the spec pins it for every SDK: `PROVIDER_FCM`, `PLATFORM_IOS`, `OP_ADD`,
+`STATUS_DELIVERED`, `KEY_MODE_IF_NEW`, `CMP_EQ`, and `FILTER_NODE_OP_AND`
+for `FilterNode`'s `op`. `jscent/proxy` has the proxy's: `ENCODING_BINARY`,
+`PROTOCOL_JSON`, `ALLOW_SUB`, `CAPABILITY_MATCH_WILDCARD`,
+`CHANNEL_EVENT_TYPE_OCCUPIED`, `FILTER_NODE_OP_AND` and the rest. The fields
+stay strings, so a value a later Centrifugo adds can be sent before jscent
+names it.
 
 ```ts
 import { OP_ADD, PLATFORM_IOS, PROVIDER_APNS } from 'jscent';

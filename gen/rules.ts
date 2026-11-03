@@ -81,38 +81,60 @@ export function listedValues(doc: string[]): string[] | undefined {
 }
 
 /**
- * The constants of a string field with listed values: the values, and the
- * messages whose field of that name lists exactly them. prefix is the message
- * name, when the field's name alone would be ambiguous.
+ * The constants of the fields with listed values which one pinned name
+ * covers: the name, the values, and the messages whose field lists them.
  */
 export interface ConstGroup {
-  field: string;
+  name: string;
   values: string[];
   messages: string[];
-  prefix: string;
+  field: string;
 }
 
-/** SCREAMING_SNAKE_CASE of a snake_case or PascalCase name: FilterNode -> FILTER_NODE. */
+/** A pin of constants: `Message.field Name`, or `*.field Name` for the field in every message which has it. */
+export interface Pin {
+  selector: string;
+  name: string;
+}
+
+/** The pins of a constants file: a selector and a name per line, # comments. */
+export function parsePins(text: string, file: string): Pin[] {
+  const pins: Pin[] = [];
+  for (const [i, raw] of text.split('\n').entries()) {
+    const line = raw.trim();
+    if (line === '' || line.startsWith('#')) {
+      continue;
+    }
+    const m = line.match(/^(\*|[A-Z]\w*)\.([a-z][a-z0-9_]*)\s+([A-Z][A-Za-z0-9]*)$/);
+    if (!m) {
+      throw new Error(`${file}:${i + 1}: expected "Message.field Name" or "*.field Name"`);
+    }
+    pins.push({ selector: `${m[1]}.${m[2]}`, name: m[3]! });
+  }
+  return pins;
+}
+
+/** SCREAMING_SNAKE_CASE of a snake_case or PascalCase name: FilterNodeOp -> FILTER_NODE_OP. */
 function screaming(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
 }
 
 /** The constant of one value of a group: OP_ADD, FILTER_NODE_OP_AND. */
 export function constName(g: ConstGroup, value: string): string {
-  return [g.prefix, g.field, value].filter(Boolean).map(screaming).join('_');
+  return `${screaming(g.name)}_${screaming(value)}`;
 }
 
 /**
- * The fields with listed values of the messages include accepts, as groups, in
- * the order of the proto. Where fields of one name list different values in
- * different messages, the set listed in the most messages keeps the short name
- * and the others are named by their message too - OP_ADD for the topic
- * updates, FILTER_NODE_OP_AND for FilterNode - and a tie names all of them so.
- * The rule runs over one proto: the API's and the proxy's constants live
- * apart.
+ * The fields with listed values of the messages include accepts, grouped by
+ * the names pins give them, in the order of the proto. The names are pinned,
+ * as the spec's table gives them, rather than derived, so that a name never
+ * changes because another message appeared: a field with a "One of:"
+ * sentence no pin names, a pin no field uses, and one name over different
+ * values each fail.
  */
-export function constGroups(messages: Message[], include: (name: string) => boolean): ConstGroup[] {
-  const byField = new Map<string, ConstGroup[]>();
+export function constGroups(messages: Message[], include: (name: string) => boolean, pins: Pin[]): ConstGroup[] {
+  const used = new Set<Pin>();
+  const byName = new Map<string, ConstGroup>();
   for (const m of messages) {
     if (!include(m.name)) {
       continue;
@@ -130,43 +152,28 @@ export function constGroups(messages: Message[], include: (name: string) => bool
       if (f.type !== 'string') {
         throw new Error(`${m.name}.${f.name}: only string fields list values, not ${f.type}`);
       }
-      const groups = byField.get(f.name) ?? [];
-      byField.set(f.name, groups);
-      let g = groups.find((o) => o.values.join() === values.join());
+      const pin =
+        pins.find((p) => p.selector === `${m.name}.${f.name}`) ?? pins.find((p) => p.selector === `*.${f.name}`);
+      if (pin === undefined) {
+        throw new Error(`${m.name}.${f.name} lists its values, but no pin names its constants: add one`);
+      }
+      used.add(pin);
+      const g = byName.get(pin.name);
       if (g === undefined) {
-        g = { field: f.name, values, messages: [], prefix: '' };
-        groups.push(g);
-      }
-      g.messages.push(m.name);
-    }
-  }
-  const out: ConstGroup[] = [];
-  for (const [name, groups] of byField) {
-    if (groups.length > 1) {
-      const most = Math.max(...groups.map((g) => g.messages.length));
-      const tie = groups.filter((g) => g.messages.length === most).length > 1;
-      for (const g of groups) {
-        if (tie || g.messages.length < most) {
-          if (g.messages.length > 1) {
-            throw new Error(
-              `field ${name} lists ${g.values.join(', ')} in ${g.messages.join(', ')} and other values elsewhere: cannot name its constants`,
-            );
-          }
-          g.prefix = g.messages[0]!;
-        }
+        byName.set(pin.name, { name: pin.name, values, messages: [m.name], field: f.name });
+      } else if (g.values.join() !== values.join()) {
+        throw new Error(
+          `${pin.name} names ${g.values.join(', ')} in ${g.messages.join(', ')} and ${values.join(', ')} in ${m.name}`,
+        );
+      } else {
+        g.messages.push(m.name);
       }
     }
-    out.push(...groups);
   }
-  const seen = new Set<string>();
-  for (const g of out) {
-    for (const v of g.values) {
-      const c = constName(g, v);
-      if (seen.has(c)) {
-        throw new Error(`two constants named ${c}`);
-      }
-      seen.add(c);
+  for (const p of pins) {
+    if (!used.has(p)) {
+      throw new Error(`the pin ${p.selector} ${p.name} names no field with listed values`);
     }
   }
-  return out;
+  return [...byName.values()];
 }

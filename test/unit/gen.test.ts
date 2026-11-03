@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from '../../gen/proto.ts';
-import { constGroups, constName, emptyHasMeaning, isPresence, isRequired, listedValues } from '../../gen/rules.ts';
+import {
+  constGroups,
+  constName,
+  emptyHasMeaning,
+  isPresence,
+  isRequired,
+  listedValues,
+  parsePins,
+} from '../../gen/rules.ts';
 import * as apiConsts from '../../src/index.ts';
 import * as proxyConsts from '../../src/proxy/index.ts';
 
@@ -65,37 +73,45 @@ describe('constants', () => {
     expect(() => listedValues(['One of: a, a.'])).toThrow('twice');
   });
 
-  it('are named by field and value, by message too where fields of one name differ', () => {
-    const names = (messages: ReturnType<typeof message>[]) =>
-      constGroups(messages, () => true).flatMap((g) => g.values.map((v) => constName(g, v)));
-    expect(
-      names([
-        message('A', field('op', 'One of: add, remove.')),
-        message('B', field('op', 'One of: add, remove.')),
-        message('FilterNode', field('op', 'One of: and, or.'), field('key_mode', 'One of: if_new.')),
-      ]),
-    ).toEqual(['OP_ADD', 'OP_REMOVE', 'FILTER_NODE_OP_AND', 'FILTER_NODE_OP_OR', 'KEY_MODE_IF_NEW']);
-    // A tie names every group by its message.
-    expect(names([message('A', field('op', 'One of: add.')), message('C', field('op', 'One of: and.'))])).toEqual([
-      'A_OP_ADD',
-      'C_OP_AND',
+  it('are named by the pins, which fail on a field without one, an unused one, and one name over different values', () => {
+    const names = (messages: ReturnType<typeof message>[], pins: string) =>
+      constGroups(messages, () => true, parsePins(pins, 'pins')).flatMap((g) => g.values.map((v) => constName(g, v)));
+    const ms = [
+      message('A', field('op', 'One of: add, remove.')),
+      message('B', field('op', 'One of: add, remove.')),
+      message('FilterNode', field('op', 'One of: and, or.'), field('key_mode', 'One of: if_new.')),
+    ];
+    const pins = 'A.op Op\nB.op Op\n# a comment\nFilterNode.op FilterNodeOp\n*.key_mode KeyMode\n';
+    expect(names(ms, pins)).toEqual([
+      'OP_ADD',
+      'OP_REMOVE',
+      'FILTER_NODE_OP_AND',
+      'FILTER_NODE_OP_OR',
+      'KEY_MODE_IF_NEW',
     ]);
+    // A message appearing changes no name: the names are not counted.
+    expect(names([...ms, message('C', field('op', 'One of: x.'))], `${pins}C.op COp\n`)).toContain('OP_ADD');
+    expect(() => names(ms, 'A.op Op\nB.op Op\n*.key_mode KeyMode\n')).toThrow('FilterNode.op lists its values');
+    expect(() => names(ms, `${pins}Gone.op GoneOp\n`)).toThrow('Gone.op GoneOp names no field');
+    expect(() => names(ms, 'A.op Op\nB.op Op\nFilterNode.op Op\n*.key_mode KeyMode\n')).toThrow(
+      'Op names add, remove in A, B and and, or in FilterNode',
+    );
+    expect(() => parsePins('A.op', 'pins')).toThrow('pins:1');
     // Only the messages included count.
     expect(
-      constGroups(
-        [message('A', field('op', 'One of: add.')), message('C', field('op', 'One of: and.'))],
-        (n) => n === 'A',
-      ).flatMap((g) => g.values.map((v) => constName(g, v))),
-    ).toEqual(['OP_ADD']);
+      constGroups(ms, (n) => n === 'A', parsePins('A.op Op', 'pins')).flatMap((g) =>
+        g.values.map((v) => constName(g, v)),
+      ),
+    ).toEqual(['OP_ADD', 'OP_REMOVE']);
   });
 
   it('equal their values, in the API and in the proxy, each named by the rule within its proto', () => {
     const proxyProto = parse(readFileSync(new URL('../../proto/proxy.proto', import.meta.url), 'utf8'), 'proxy.proto');
-    for (const [schema, mod] of [
-      [api, apiConsts],
-      [proxyProto, proxyConsts],
+    for (const [schema, mod, pins] of [
+      [api, apiConsts, readFileSync(new URL('../../gen/constants_api.txt', import.meta.url), 'utf8')],
+      [proxyProto, proxyConsts, readFileSync(new URL('../../gen/constants_proxy.txt', import.meta.url), 'utf8')],
     ] as const) {
-      const groups = constGroups(schema.messages, () => true);
+      const groups = constGroups(schema.messages, () => true, parsePins(pins, 'pins'));
       expect(groups.length).toBeGreaterThan(0);
       for (const g of groups) {
         for (const v of g.values) {
@@ -105,7 +121,13 @@ describe('constants', () => {
     }
     expect(apiConsts.FILTER_NODE_OP_AND).toBe('and');
     expect(apiConsts.OP_ADD).toBe('add');
-    expect(proxyConsts.OP_AND).toBe('and');
+    // The names the spec pins.
+    expect(proxyConsts.FILTER_NODE_OP_AND).toBe('and');
+    expect(proxyConsts.CAPABILITY_MATCH_WILDCARD).toBe('wildcard');
+    expect(proxyConsts.CHANNEL_EVENT_TYPE_OCCUPIED).toBe('occupied');
+    expect(proxyConsts.ALLOW_SUB).toBe('sub');
+    expect(apiConsts.KEY_MODE_IF_NEW).toBe('if_new');
+    expect(apiConsts.STATUS_DELIVERED).toBe('delivered');
     expect(apiConsts.PROVIDER_FCM).toBe('fcm');
     expect(apiConsts.PLATFORM_IOS).toBe('ios');
     expect(proxyConsts.ENCODING_BINARY).toBe('binary');

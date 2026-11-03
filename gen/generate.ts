@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Field, type Message, parse, type Schema } from './proto.ts';
-import { constGroups, constName, isChecked, isPresence } from './rules.ts';
+import { constGroups, constName, isChecked, isPresence, parsePins } from './rules.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -355,7 +355,8 @@ function emitConstants(s: Schema, include: (name: string) => boolean, proto: str
   let out = '';
   let groups: ReturnType<typeof constGroups>;
   try {
-    groups = constGroups(s.messages, include);
+    const file = `constants_${proto.replace('.proto', '')}.txt`;
+    groups = constGroups(s.messages, include, parsePins(readFileSync(join(ROOT, 'gen', file), 'utf8'), `gen/${file}`));
   } catch (e) {
     throw new Error(`${proto}: ${(e as Error).message}`);
   }

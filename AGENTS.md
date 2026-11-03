@@ -14,6 +14,7 @@ changing code.
 |---|---|
 | `proto/api.proto`, `proto/proxy.proto` | Copies of Centrifugo's protos, from a released tag (`CENTRIFUGO_REF=v6.10.2 npm run sync-proto`) |
 | `gen/required_fields.txt` | The fields the protos mark "Required.", made required properties. Generation fails when the protos' list differs: a newly required field breaks every call without it, so review the change - fix the proto upstream if Centrifugo accepts the field absent - then `node gen/generate.ts --accept-required` |
+| `gen/constants_api.txt`, `gen/constants_proxy.txt` | The names of the constants of the fields with a "One of:" sentence, as the spec's table pins them: a field without a pin, a pin without a field, and one name over different values fail the generation. Add a new field's name here and in the spec's table |
 | `gen/` | `proto.ts` parses the protos, `rules.ts` reads their comments - "Required.", presence wrappers, "One of:" - `generate.ts` writes `src/generated/`, `api_docs.ts` writes `API.md` from `dist/`'s declarations |
 | `src/generated/` | Generated - never edited: request and result types, field descriptors, the constants of the fields with listed values, the methods of the client, a batch and `command` |
 | `API.md` | The API reference - never edited |

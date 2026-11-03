@@ -2989,6 +2989,38 @@ const ALLOW_SUB = "sub";
 
 `sub`: a value of ChannelsCapability.allow and SubscribeResult.allow, a string, which may take values no constant names too.
 
+#### `CAPABILITY_MATCH_REGEX`
+
+```ts
+const CAPABILITY_MATCH_REGEX = "regex";
+```
+
+`regex`: a value of ChannelsCapability.match, a string, which may take values no constant names too.
+
+#### `CAPABILITY_MATCH_WILDCARD`
+
+```ts
+const CAPABILITY_MATCH_WILDCARD = "wildcard";
+```
+
+`wildcard`: a value of ChannelsCapability.match, a string, which may take values no constant names too.
+
+#### `CHANNEL_EVENT_TYPE_OCCUPIED`
+
+```ts
+const CHANNEL_EVENT_TYPE_OCCUPIED = "occupied";
+```
+
+`occupied`: a value of ChannelEvent.type, a string, which may take values no constant names too.
+
+#### `CHANNEL_EVENT_TYPE_VACATED`
+
+```ts
+const CHANNEL_EVENT_TYPE_VACATED = "vacated";
+```
+
+`vacated`: a value of ChannelEvent.type, a string, which may take values no constant names too.
+
 #### interface `ChannelEvent`
 
 ChannelEvent is a change of a channel's state.
@@ -3158,6 +3190,30 @@ const ENCODING_JSON = "json";
 
 `json`: a value of ConnectRequest.encoding, RefreshRequest.encoding, SubscribeRequest.encoding, PublishRequest.encoding, MapPublishRequest.encoding, MapRemoveRequest.encoding, RPCRequest.encoding and SubRefreshRequest.encoding, a string, which may take values no constant names too.
 
+#### `FILTER_NODE_OP_AND`
+
+```ts
+const FILTER_NODE_OP_AND = "and";
+```
+
+`and`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `FILTER_NODE_OP_NOT`
+
+```ts
+const FILTER_NODE_OP_NOT = "not";
+```
+
+`not`: a value of FilterNode.op, a string, which may take values no constant names too.
+
+#### `FILTER_NODE_OP_OR`
+
+```ts
+const FILTER_NODE_OP_OR = "or";
+```
+
+`or`: a value of FilterNode.op, a string, which may take values no constant names too.
+
 #### interface `FilterNode`
 
 FilterNode is a node of a publication tags filter expression. A leaf node
@@ -3244,22 +3300,6 @@ keep what the client sent, or the defaults.
 - `tags?: Record<string, string>` - Attached to the removal publication. When unset, the removed entry's own tags are.
 - `idempotencyKey?: string` - Makes the removal idempotent within the broker's idempotency window.
 
-#### `MATCH_REGEX`
-
-```ts
-const MATCH_REGEX = "regex";
-```
-
-`regex`: a value of ChannelsCapability.match, a string, which may take values no constant names too.
-
-#### `MATCH_WILDCARD`
-
-```ts
-const MATCH_WILDCARD = "wildcard";
-```
-
-`wildcard`: a value of ChannelsCapability.match, a string, which may take values no constant names too.
-
 #### interface `NotifyCacheEmptyRequest`
 
 NotifyCacheEmptyRequest is sent when a client subscribed to a channel in
@@ -3288,30 +3328,6 @@ type NotifyChannelStateResult = Record<string, never>;
 ```
 
 NotifyChannelStateResult is the NotifyChannelStateResult message of the Centrifugo proxy protocol.
-
-#### `OP_AND`
-
-```ts
-const OP_AND = "and";
-```
-
-`and`: a value of FilterNode.op, a string, which may take values no constant names too.
-
-#### `OP_NOT`
-
-```ts
-const OP_NOT = "not";
-```
-
-`not`: a value of FilterNode.op, a string, which may take values no constant names too.
-
-#### `OP_OR`
-
-```ts
-const OP_OR = "or";
-```
-
-`or`: a value of FilterNode.op, a string, which may take values no constant names too.
 
 #### `PROTOCOL_JSON`
 
@@ -3512,21 +3528,5 @@ SubscribeResult accepts the subscription.
 - `override?: SubscribeOptionOverride` - Overrides channel options of the namespace for this subscription.
 - `allow?: readonly string[]` - Capabilities granted in the channel for this subscription. Centrifugo PRO only. One of: sub, pub, hst, prs.
 - `serverTagsFilter?: FilterNode` - Makes the subscription receive only publications whose tags match it. Centrifugo PRO only.
-
-#### `TYPE_OCCUPIED`
-
-```ts
-const TYPE_OCCUPIED = "occupied";
-```
-
-`occupied`: a value of ChannelEvent.type, a string, which may take values no constant names too.
-
-#### `TYPE_VACATED`
-
-```ts
-const TYPE_VACATED = "vacated";
-```
-
-`vacated`: a value of ChannelEvent.type, a string, which may take values no constant names too.
 
 </details>
