@@ -23,8 +23,9 @@ await client.publish({ channel: 'news', data: { text: 'hello' } });
 ```
 
 Every API method takes its request and resolves to its result, rejecting
-unless Centrifugo did everything asked. Each takes `{ timeout, signal }`;
-without a timeout, requestTimeout bounds the call.
+unless Centrifugo did everything asked. Each takes `{ timeout, signal }`:
+requestTimeout bounds every call, its timeout replaces requestTimeout, and
+its signal only ends it sooner.
 
 #### `blockUser(request: BlockUserRequest, options?: CallOptions): Promise<BlockUserResult>`
 
@@ -349,7 +350,7 @@ The options of a Client.
 - `apiKey?: string` - Sent as X-API-Key. Leave it and getBearerToken unset when requests are authenticated another way - mutual TLS, a proxy - or not at all.
 - `getBearerToken?: () => string | Promise<string>` - Returns the token sent as "Authorization: Bearer" with each request, for Centrifugo PRO's JWKS authentication of the API - an ApiTokens's token, say. Not together with apiKey.
 - `fetch?: Fetch` - The fetch sending the requests: the runtime's own by default. Pass your own - with an undici dispatcher, say, or instrumented for tracing. It is called with each request's credentials and headers, never changed.
-- `requestTimeout?: number` - Milliseconds bounding a call without a timeout of its own: 10 seconds by default.
+- `requestTimeout?: number` - Milliseconds bounding every call: 10 seconds by default. A call's own `timeout` replaces it, longer or shorter; a call's `signal` only ends it sooner, never later.
 - `headers?: Record<string, string>` - Extra headers for every request, for a proxy in front of Centrifugo. Not X-API-Key, Authorization or Content-Type. A User-Agent replaces jscent's.
 - `onRequest?: (info: RequestInfo) => void` - Called after every HTTP request, for metrics; the call waits for it. It must not throw: what it throws rejects the call in place of its outcome.
 - `autoBatch?: AutoBatch` - Sends calls made concurrently in batches: see AutoBatch.
@@ -381,7 +382,7 @@ over 1 MB by default) - every call in it fails with that error.
 The options of broadcastWithRetry.
 
 - `maxAttempts?: number` - How many attempts at most: 2 by default, one retry.
-- `attemptTimeout?: number` - Milliseconds bounding each attempt: requestTimeout by default.
+- `attemptTimeout?: number` - Milliseconds bounding each attempt, replacing requestTimeout for it: requestTimeout by default. The call's timeout and signal still end an attempt sooner.
 - `onAttemptError?: (attempt: BroadcastAttempt) => number | undefined | Promise<number | undefined>` - Called after an attempt which failed in a way a retry may fix, except the last. It returns the milliseconds to wait before the next attempt, or undefined for the default wait - exponentialBackoff(100, 5000) of the attempt - and may log or count meanwhile. To stop, it throws: its error propagates as it is. The wait never outlasts the call's timeout.
 
 ### interface `RequestInfo`
@@ -692,8 +693,8 @@ JSON text, sent as it is: see RawJSON.
 
 The options of one call.
 
-- `timeout?: number` - Milliseconds bounding the call - connecting, sending, the reply's headers and body: requestTimeout when unset.
-- `signal?: AbortSignal` - Aborts the call; it then throws the signal's reason, as fetch does.
+- `timeout?: number` - Milliseconds bounding the call - connecting, sending, the reply's headers and body - replacing requestTimeout, longer or shorter: requestTimeout when unset.
+- `signal?: AbortSignal` - Aborts the call; it then throws the signal's reason, as fetch does. It only ends a call sooner: a signal which aborts later than the call's timeout, or never, does not extend it.
 
 ### `retryable`
 

@@ -434,6 +434,57 @@ describe('errors', () => {
     expect(await rejection(fake.client().info(undefined, { timeout: -1 }))).toBeInstanceOf(InvalidRequestError);
   });
 
+  it('bounds every call by requestTimeout, which a timeout replaces and a signal only shortens', async () => {
+    // A Centrifugo answering after ms, or never when the call ends first.
+    const answerAfter = (ms: number) => (_m: string, _j: unknown, init: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        const t = setTimeout(() => resolve(json(200, { result: {} })), ms);
+        init.signal?.addEventListener('abort', () => {
+          clearTimeout(t);
+          reject(init.signal?.reason);
+        });
+      });
+    const slow = new FakeCentrifugo(answerAfter(300));
+    // A signal ending later than requestTimeout does not extend it.
+    let start = performance.now();
+    const late = await rejection(
+      slow.client({ requestTimeout: 30 }).info(undefined, { signal: AbortSignal.timeout(5000) }),
+    );
+    expect(late).toBeInstanceOf(TimeoutError);
+    expect(performance.now() - start).toBeLessThan(250);
+    // One ending sooner ends the call, as an abort: its reason.
+    const reason = new Error('caller gone');
+    const ac = new AbortController();
+    setTimeout(() => ac.abort(reason), 20);
+    start = performance.now();
+    expect(await rejection(slow.client({ requestTimeout: 5000 }).info(undefined, { signal: ac.signal }))).toBe(reason);
+    expect(performance.now() - start).toBeLessThan(250);
+    // A call's own timeout replaces requestTimeout, longer or shorter.
+    await slow.client({ requestTimeout: 30 }).info(undefined, { timeout: 2000 });
+    expect(await rejection(slow.client({ requestTimeout: 5000 }).info(undefined, { timeout: 30 }))).toBeInstanceOf(
+      TimeoutError,
+    );
+    // An attempt's timeout replaces requestTimeout for each attempt; the
+    // call's signal still ends it sooner.
+    const bslow = new FakeCentrifugo((m, j, init) =>
+      m === 'broadcast'
+        ? (answerAfter(300)(m, j, init).then(() => json(200, { result: { responses: [{ result: {} }] } })) as never)
+        : {},
+    );
+    const res = await bslow
+      .client({ requestTimeout: 30 })
+      .broadcastWithRetry({ channels: ['a'], data: 1 }, { attemptTimeout: 2000, maxAttempts: 1 });
+    expect(res.failed).toEqual([]);
+    const ac2 = new AbortController();
+    setTimeout(() => ac2.abort(reason), 20);
+    const aborted = await rejection(
+      bslow
+        .client({ requestTimeout: 30 })
+        .broadcastWithRetry({ channels: ['a'], data: 1 }, { attemptTimeout: 2000, maxAttempts: 1, signal: ac2.signal }),
+    );
+    expect(aborted).toBe(reason);
+  });
+
   it('refuses invalid requests before sending', async () => {
     const fake = new FakeCentrifugo();
     const c = fake.client();

@@ -165,8 +165,12 @@ and `JSON.stringify` refuses it: to send such a payload on with a
 
 ## Timeouts
 
-Each call takes `{ timeout, signal }`, the timeout in milliseconds; without
-one, `requestTimeout` - ten seconds by default - bounds it:
+`requestTimeout` - ten seconds by default - bounds every call. Each call
+takes `{ timeout, signal }`: its `timeout`, in milliseconds, replaces
+`requestTimeout` for that call, longer or shorter; its `signal` only ends it
+sooner, never later - a call made with the signal of a request handler which
+lives for minutes still gives up on a stuck Centrifugo after
+`requestTimeout`:
 
 ```ts
 await client.info(undefined, { timeout: 500 });
@@ -177,7 +181,8 @@ The timeout bounds the whole call - connecting, sending, the reply's headers
 and body - and rejects with `TimeoutError`. A call aborted by its `signal`
 rejects with the signal's reason, as `fetch` does. `broadcastWithRetry` makes
 several requests in one call: its `timeout` bounds them all, waits between
-them included, and `attemptTimeout` each one.
+them included, and `attemptTimeout` each one, replacing `requestTimeout` for
+it - the call's `timeout` and `signal` still end an attempt sooner.
 
 ## Errors
 

@@ -201,7 +201,7 @@ describe('positions', () => {
   it('are given in a batch, in a broadcast, and to a test double of a broadcast', async () => {
     const want = { offset: 4, epoch: 'h' };
     const methods = ['publish', 'history', 'map_publish', 'map_remove', 'map_read_state', 'map_read_stream'];
-    const fake = new FakeCentrifugo((m, body) =>
+    const fake = new FakeCentrifugo((m) =>
       m === 'batch'
         ? json(200, { replies: methods.map((name) => ({ [name]: reply(name) })) })
         : { responses: [{ result: want }] },

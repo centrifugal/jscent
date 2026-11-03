@@ -20,9 +20,14 @@ export function checkCallOptions(options: object | undefined, extra: readonly st
 export interface CallOptions {
   /**
    * Milliseconds bounding the call - connecting, sending, the reply's headers
-   * and body: requestTimeout when unset.
+   * and body - replacing requestTimeout, longer or shorter: requestTimeout
+   * when unset.
    */
   timeout?: number;
-  /** Aborts the call; it then throws the signal's reason, as fetch does. */
+  /**
+   * Aborts the call; it then throws the signal's reason, as fetch does. It
+   * only ends a call sooner: a signal which aborts later than the call's
+   * timeout, or never, does not extend it.
+   */
   signal?: AbortSignal;
 }

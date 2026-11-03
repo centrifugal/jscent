@@ -47,10 +47,14 @@ passes; if you find yourself about to break one, stop and say so instead.
 4. **Errors follow Centrifugo's model.** A Centrifugo error is an `ApiError`,
    the subclass of its code when known; the transport error mode gives the
    same error as a 200 reply.
-5. **One deadline per call.** Its `timeout` - or `requestTimeout` - becomes an
+5. **One deadline per call.** `requestTimeout` bounds every call; a call's
+   `timeout` replaces it, longer or shorter. It becomes an
    `AbortSignal.timeout` combined with the caller's `signal`, bounding the
-   fetch and the body read: any timeout is a `TimeoutError`, a caller's abort
-   rejects with the signal's reason.
+   fetch and the body read: the signal only shortens a call, never extends
+   it. Any timeout is a `TimeoutError`, a caller's abort rejects with the
+   signal's reason. `attemptTimeout` is each broadcast retry attempt's own
+   timeout; an automatic batch's request lasts until the latest deadline of
+   its calls, and at least `requestTimeout` from when it is sent.
 6. **A payload is carried exactly.** Plain values are encoded with
    `JSON.stringify`, refusing what it would silently change (NaN, bytes, Maps,
    functions); `bigint` through `JSON.rawJSON`; `rawJSON` spliced in as its

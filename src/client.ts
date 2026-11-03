@@ -172,7 +172,11 @@ export interface ClientOptions {
    * called with each request's credentials and headers, never changed.
    */
   fetch?: Fetch;
-  /** Milliseconds bounding a call without a timeout of its own: 10 seconds by default. */
+  /**
+   * Milliseconds bounding every call: 10 seconds by default. A call's own
+   * `timeout` replaces it, longer or shorter; a call's `signal` only ends it
+   * sooner, never later.
+   */
   requestTimeout?: number;
   /**
    * Extra headers for every request, for a proxy in front of Centrifugo. Not
@@ -198,7 +202,11 @@ export interface ClientOptions {
 export interface BroadcastRetryOptions extends CallOptions {
   /** How many attempts at most: 2 by default, one retry. */
   maxAttempts?: number;
-  /** Milliseconds bounding each attempt: requestTimeout by default. */
+  /**
+   * Milliseconds bounding each attempt, replacing requestTimeout for it:
+   * requestTimeout by default. The call's timeout and signal still end an
+   * attempt sooner.
+   */
   attemptTimeout?: number;
   /**
    * Called after an attempt which failed in a way a retry may fix, except the
@@ -220,8 +228,9 @@ export interface BroadcastRetryOptions extends CallOptions {
  * ```
  *
  * Every API method takes its request and resolves to its result, rejecting
- * unless Centrifugo did everything asked. Each takes `{ timeout, signal }`;
- * without a timeout, requestTimeout bounds the call.
+ * unless Centrifugo did everything asked. Each takes `{ timeout, signal }`:
+ * requestTimeout bounds every call, its timeout replaces requestTimeout, and
+ * its signal only ends it sooner.
  */
 export class Client extends ClientMethods {
   readonly #endpoint: string;
