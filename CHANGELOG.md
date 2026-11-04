@@ -2,6 +2,8 @@
 
 jscent 1 is a rewrite to the [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md), version 0.3, which gives Centrifugo's server SDKs the same calls, errors and behaviour, spelled the JavaScript way. It runs on Node.js 22 or newer, Deno 2, Bun 1.2 and edge runtimes such as Cloudflare Workers, with no dependencies - `fetch` and Web Crypto only - and ships its TypeScript types. It works with Centrifugo v6 and Centrifugo PRO v6; the map and shared poll methods need v6.8.0 or newer. jscent 0.2 was written for Centrifugo 1 and does not work with v6: to move over, see the [migration guide](https://github.com/centrifugal/jscent/blob/master/MIGRATING.md).
 
+Generated from Centrifugo's protos at [e21aeb50](https://github.com/centrifugal/centrifugo/commit/e21aeb50ab6fc4d525fc817473574f728da6c3ad) on its master, after v6.10.2: the same messages as v6.10.2, with the comments the constants are generated from, and `ConnectResult.profile` for the connect proxy, which Centrifugo PRO newer than v6.10.2 reads.
+
 ### Client and calls
 
 - `new Client({ apiEndpoint, apiKey })`, or `getApiEndpoint` for an address discovered per request and `getBearerToken` for Centrifugo PRO's API tokens; `headers`; your own `fetch` for pools, proxies, tracing and tests. Options are checked when the client is created, and an unknown one is refused with a hint (`timeout`: did you mean `requestTimeout`?).

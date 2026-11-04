@@ -12,7 +12,7 @@ changing code.
 
 | Path | What |
 |---|---|
-| `proto/api.proto`, `proto/proxy.proto` | Copies of Centrifugo's protos, from a released tag (`CENTRIFUGO_REF=v6.10.2 npm run sync-proto`) |
+| `proto/api.proto`, `proto/proxy.proto` | Copies of Centrifugo's protos (`CENTRIFUGO_REF=vX.Y.Z npm run sync-proto`): a released tag, or a commit of master named in the changelog |
 | `gen/required_fields.txt` | The fields the protos mark "Required.", made required properties. Generation fails when the protos' list differs: a newly required field breaks every call without it, so review the change - fix the proto upstream if Centrifugo accepts the field absent - then `node gen/generate.ts --accept-required` |
 | `gen/constants_api.txt`, `gen/constants_proxy.txt` | The names of the constants of the fields with a "One of:" sentence, as the spec's table pins them: a field without a pin, a pin without a field, and one name over different values fail the generation. Add a new field's name here and in the spec's table |
 | `gen/` | `proto.ts` parses the protos, `rules.ts` reads their comments - "Required.", presence wrappers, "One of:" - `generate.ts` writes `src/generated/`, `api_docs.ts` writes `API.md` from `dist/`'s declarations |
@@ -92,7 +92,7 @@ which Centrifugo reaches as `host.docker.internal`.
 
 ## Updating to a new Centrifugo API
 
-1. `CENTRIFUGO_REF=vX.Y.Z npm run sync-proto` - always a released tag.
+1. `CENTRIFUGO_REF=vX.Y.Z npm run sync-proto` - a released tag, or, when a release needs changes no tag has yet, a commit of Centrifugo's master, which the release's changelog entry names (spec section 2).
 2. Read the diff of `proto/`: a removed field is a breaking change.
 3. `npm run check`, then the integration tests against the new release.
 4. Bump the Centrifugo image in `.github/workflows/ci.yml` and
