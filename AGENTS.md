@@ -101,12 +101,6 @@ which Centrifugo reaches as `host.docker.internal`.
 
 ## Releasing
 
-**Before releasing v1.0.0:** `proto/api.proto` and `proto/proxy.proto` are
-from Centrifugo's `master` (centrifugal/centrifugo#1308, #1309, #1310), for
-the "One of:" sentences spec 0.3 generates constants from and
-`ConnectResult.profile`: sync them again from the first Centrifugo tag holding
-them (`CENTRIFUGO_REF=vX.Y.Z npm run sync-proto`), then remove this note.
-
 Push a tag, `v1.0.0` say: `release.yml` sets the package version from it,
 checks and builds, publishes to npm with provenance - through npm's trusted
 publishing, no token - and creates the GitHub release. A tag with a
