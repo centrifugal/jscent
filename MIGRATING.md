@@ -29,6 +29,71 @@ What changes:
   PRO's API tokens, shared poll signatures, commands for async consumers,
   `broadcastWithRetry`, automatic batching, and your own `fetch`.
 
+## The client
+
+jscent 0.2 took the server's URL and appended `/api` itself. jscent 1 takes
+the API's URL, `/api` included, checks it when the client is created, and
+refuses a URL ending in a method name:
+
+```js
+// jscent 0.2
+const Client = require('jscent');
+const client = new Client({ url: 'http://localhost:8000', secret: 'SECRET', timeout: 5000 });
+client.publish('news', { text: 'hi' }, (err, res) => { /* ... */ });
+
+// jscent 1
+import { Client } from 'jscent';
+const client = new Client({ apiEndpoint: 'http://localhost:8000/api', apiKey: process.env.CENTRIFUGO_API_KEY, requestTimeout: 5000 });
+const res = await client.publish({ channel: 'news', data: { text: 'hi' } });
+```
+
+An option jscent 1 does not know is refused, with a hint: `url`, `secret`
+and `timeout` fail with `InvalidConfigError` naming `apiEndpoint`, `apiKey`
+and `requestTimeout`. `strictSSL` is gone, refused with a hint to `fetch`:
+TLS belongs to your own `fetch` (with an undici `Agent`, say).
+
+## Timeouts
+
+`requestTimeout`, in milliseconds as 0.2's `timeout` was, bounds every call:
+10 seconds by default, where 0.2 had none. A call can pass its own:
+
+```ts
+await client.publish({ channel, data }, { timeout: 2_000 }); // replaces requestTimeout for this call
+await client.publish({ channel, data }, { signal: req.signal }); // only ends the call sooner
+```
+
+A `signal` never makes a call wait longer than its timeout: a call made with
+the signal of a request handler which lives for minutes still gives up after
+`requestTimeout`. A timeout rejects with `TimeoutError`, an abort with the
+signal's reason. A timeout of zero is refused: leave it unset for the
+default.
+
+## Requests checked before sending
+
+A request jscent can tell is wrong rejects with `InvalidRequestError` and is
+not sent: a field it does not know (`skip_history` instead of
+`skipHistory`), a field Centrifugo requires left unset or empty
+(`client.history({ channel: '' })`), a publication without data, a payload
+JSON cannot hold (NaN, a `Map`, bytes). Where 0.2 sent these and Centrifugo
+answered with an error, jscent 1 fails at the call.
+
+A nested message with nothing set is not sent, as an empty field is not.
+`deviceUpdate`'s updates are the exception: an empty `userUpdate` detaches the
+devices from their user, an empty `timezoneUpdate` clears the timezone.
+
+## History reads what you ask for
+
+Centrifugo v6's `history` returns publications only with a `limit`; without
+one it gives the stream's position alone. Pass a `limit`, or read every
+publication a page at a time:
+
+```ts
+const { publications } = await client.history({ channel: 'news', limit: 100 });
+for await (const item of client.historyAll({ channel: 'news', limit: 100 })) {
+  handle(item.data);
+}
+```
+
 ## Broadcasts and batches reject when a part failed
 
 A broadcast or batch in which any channel or command failed rejects - with
@@ -67,13 +132,14 @@ failed for a temporary reason, use `broadcastWithRetry`.
 | `client.unsubscribe(user, channel, cb)` | `await client.unsubscribe({ user, channel })` |
 | `client.disconnect(user, cb)` | `await client.disconnect({ user })` |
 | `client.presence(channel, cb)` | `await client.presence({ channel })` |
-| `client.history(channel, cb)` | `await client.history({ channel, limit: 100 })` |
+| `client.history(channel, cb)` | `await client.history({ channel, limit: 100 })`, or `client.historyAll(...)` for every publication |
 | `client.channels(cb)` | `await client.channels({})` |
 | `client.stats(cb)` | `await client.info()` |
 | `client.add(...)`, `client.send(cb)` | `const batch = client.newBatch(); const p = batch.publish({ channel, data }); await batch.send(); p.result()` |
 | `new Token(secret).clientToken(user, timestamp, info)` | `await token.connection(token.Key.hmac(secret), { user, expiresAt, info })` |
 | `new Token(secret).channelSign(client, channel, info)` | `await token.subscription(token.Key.hmac(secret), { channel, user, expiresAt, info })` - Centrifugo v6 has subscription tokens instead |
-| `RequestError` | `HTTPError`, `NetworkError`, `TimeoutError`, `DecodeError`; `ApiError` for Centrifugo's own errors |
+| `RequestError` (`statusCode`, `body`, `error`) | `HTTPError` (`status`, `body`, `headers`) and `UnauthorizedError`, `NetworkError` (fetch's error as `cause`), `TimeoutError`, `DecodeError`; `ApiError` for Centrifugo's own errors, with a subclass per known code; all are `CentError` |
+| `Client.Token`, `Client.RequestError` | `import * as token from 'jscent/token'`; the errors from `jscent` |
 
 For tests, give the client a fake `fetch` instead of mocking it: see
 [Testing your code](README.md#testing-your-code).
