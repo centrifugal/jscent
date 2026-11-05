@@ -1,10 +1,11 @@
 name: Release
 
-# Pushing a tag, v1.0.0 say, releases it: the package version is set from the
-# tag - package.json keeps 0.0.0-development - then the package is checked,
-# built and published to npm with provenance, and the GitHub release created.
-# A tag with a pre-release part, v1.0.0-beta.1, is published under npm's
-# "next" tag, so that `npm install jscent` keeps the latest stable release.
+# Pushing a tag, 1.0.0 or v1.0.0 say, releases it: the package version is set
+# from the tag, without its v - package.json keeps 0.0.0-development - then
+# the package is checked, built and published to npm with provenance, and the
+# GitHub release created. A tag with a pre-release part, 1.0.0-beta.1, is
+# published under npm's "next" tag, so that `npm install jscent` keeps the
+# latest stable release.
 #
 # Publishing uses npm's trusted publishing
 # (https://docs.npmjs.com/trusted-publishers): on npmjs.com, the package's
@@ -15,7 +16,8 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]*"
+      - "[0-9]*"
 
 permissions:
   contents: write
