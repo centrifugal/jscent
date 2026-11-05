@@ -1,0 +1,49 @@
+name: Release
+
+# Pushing a tag, v1.0.0 say, releases it: the package version is set from the
+# tag - package.json keeps 0.0.0-development - then the package is checked,
+# built and published to npm with provenance, and the GitHub release created.
+# A tag with a pre-release part, v1.0.0-beta.1, is published under npm's
+# "next" tag, so that `npm install jscent` keeps the latest stable release.
+#
+# Publishing uses npm's trusted publishing: on npmjs.com, the package's
+# settings name this repository and this workflow as a trusted publisher, and
+# no token is stored. Without it, an NPM_TOKEN secret is used instead.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - name: Version from the tag
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+      - run: npm run check
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          tag=latest
+          case "$GITHUB_REF_NAME" in *-*) tag=next ;; esac
+          npm publish --provenance --access public --tag "$tag"
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME" $prerelease

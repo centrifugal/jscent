@@ -1,17 +1,74 @@
 {
   "name": "jscent",
-  "description": "Node.js client to interact with the Centrifugo HTTP API",
-  "version": "0.2.1",
-  "author": "Alexandr Emelin <frvzmb@gmail.com>",
-  "contributors": [],
-  "dependencies": {
-    "request": "=2.87.0"
+  "version": "0.0.0-development",
+  "description": "JavaScript SDK for Centrifugo's HTTP server API: every API method, tokens, proxy handlers and the endpoints client SDKs call. Node.js, Deno, Bun and edge runtimes.",
+  "keywords": [
+    "centrifugo",
+    "realtime",
+    "websocket",
+    "pubsub",
+    "jwt",
+    "jwks",
+    "server-api"
+  ],
+  "homepage": "https://github.com/centrifugal/jscent",
+  "bugs": "https://github.com/centrifugal/jscent/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/centrifugal/jscent.git"
   },
-  "devDependencies": {},
-  "scripts": {},
-  "keywords": ["centrifugo", "websockets", "sockjs", "real-time"],
   "license": "MIT",
-  "repository": "https://github.com/centrifugal/jscent",
-  "main": "lib/client",
-  "engines": { "node": ">= 0.8.0" }
+  "author": "Centrifugal Labs LTD",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./token": {
+      "types": "./dist/token.d.ts",
+      "default": "./dist/token.js"
+    },
+    "./endpoints": {
+      "types": "./dist/endpoints.d.ts",
+      "default": "./dist/endpoints.js"
+    },
+    "./proxy": {
+      "types": "./dist/proxy/index.d.ts",
+      "default": "./dist/proxy/index.js"
+    },
+    "./sharedpoll": {
+      "types": "./dist/sharedpoll.d.ts",
+      "default": "./dist/sharedpoll.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "generate": "node gen/generate.ts",
+    "generate:check": "node gen/generate.ts --check",
+    "docs": "npm run build && node gen/api_docs.ts",
+    "docs:check": "npm run build && node gen/api_docs.ts --check",
+    "lint": "biome check . && tsc --noEmit",
+    "fix": "biome check --write .",
+    "test": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "check": "npm run generate:check && npm run lint && npm test && npm run docs:check",
+    "sync-proto": "node gen/sync_proto.ts",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
 }
