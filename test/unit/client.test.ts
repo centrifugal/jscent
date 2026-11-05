@@ -932,6 +932,132 @@ describe('the rest', () => {
   });
 });
 
+/** A promise and the function resolving it. */
+function gate(): [Promise<void>, () => void] {
+  let open: () => void = () => {};
+  const p = new Promise<void>((r) => {
+    open = r;
+  });
+  return [p, open];
+}
+
+/** Whether p settled by now, after the pending timers and callbacks had their turn. */
+async function settled(p: Promise<unknown>): Promise<boolean> {
+  let done = false;
+  void p.then(
+    () => {
+      done = true;
+    },
+    () => {
+      done = true;
+    },
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  return done;
+}
+
+describe('shutdown, spec section 3.6', () => {
+  it('sends the calls queued for an automatic batch', async () => {
+    const [held, release] = gate();
+    const fake = new FakeCentrifugo(async (method, body) => {
+      await held;
+      return method === 'batch' ? json(200, { replies: (body.commands as unknown[]).map(() => ({ info: {} })) }) : {};
+    });
+    const c = fake.client({ autoBatch: { maxInFlight: 1 } });
+    const first = c.info();
+    const queued = [c.info(), c.info()];
+    const closing = c.close();
+    expect(await rejection(c.info())).toBeInstanceOf(ClosedError);
+    expect(await settled(closing)).toBe(false);
+    release();
+    await first;
+    await Promise.all(queued);
+    await closing;
+    expect(fake.sent.map((s) => s.method)).toEqual(['info', 'batch']);
+    expect((fake.last.json as { commands: unknown[] }).commands.length).toBe(2);
+  });
+
+  it('waits for a batch whose callers left', async () => {
+    const [firstHeld, releaseFirst] = gate();
+    const [batchHeld, releaseBatch] = gate();
+    let batchDone = false;
+    const fake = new FakeCentrifugo(async (method, body) => {
+      if (method !== 'batch') {
+        await firstHeld;
+        return {};
+      }
+      await batchHeld;
+      batchDone = true;
+      return json(200, { replies: (body.commands as unknown[]).map(() => ({ info: {} })) });
+    });
+    const c = fake.client({ autoBatch: { maxInFlight: 1 } });
+    const first = c.info();
+    // Queued behind the first call, sent as a batch when it ends, and left
+    // by their callers while the batch is in flight.
+    const queued = [c.info({}, { timeout: 100 }), c.info({}, { timeout: 100 })];
+    releaseFirst();
+    await first;
+    for (const q of queued) {
+      expect(await rejection(q)).toBeInstanceOf(TimeoutError);
+    }
+    expect(fake.last.method).toBe('batch');
+    const closing = c.close();
+    expect(await settled(closing)).toBe(false);
+    releaseBatch();
+    await closing;
+    expect(batchDone).toBe(true);
+  });
+
+  it('stops a broadcast retry at its next attempt, with ClosedError', async () => {
+    const [held, release] = gate();
+    const fake = new FakeCentrifugo(async () => {
+      await held;
+      return json(503, 'down');
+    });
+    const c = fake.client();
+    const retrying = c.broadcastWithRetry({ channels: ['a'], data: 1 }, { maxAttempts: 5, onAttemptError: () => 10 });
+    while (fake.sent.length === 0) {
+      await new Promise((r) => setTimeout(r, 1));
+    }
+    // Close waits for the attempt in flight.
+    const closing = c.close();
+    expect(await settled(closing)).toBe(false);
+    release();
+    await closing;
+    expect(await rejection(retrying)).toBeInstanceOf(ClosedError);
+    expect(fake.sent.length).toBe(1);
+  });
+
+  it('waits the same way when called again, and concurrently', async () => {
+    const [held, release] = gate();
+    let replied = false;
+    const fake = new FakeCentrifugo(async () => {
+      await held;
+      replied = true;
+      return {};
+    });
+    const c = fake.client();
+    const inFlight = c.info();
+    const closes = Array.from({ length: 4 }, () =>
+      c.close().then(() => {
+        // No close returns before the call in progress was answered.
+        expect(replied).toBe(true);
+      }),
+    );
+    // One whose deadline ends first: it rejects, and the others still wait.
+    expect(await rejection(c.close({ timeout: 10 }))).toBeInstanceOf(TimeoutError);
+    for (const p of closes) {
+      expect(await settled(p)).toBe(false);
+    }
+    release();
+    await inFlight;
+    await Promise.all(closes);
+    // And again once closed: nothing left to wait for.
+    await c.close();
+    await c.close({ timeout: 10 });
+  });
+});
+
 describe('results as JSON', () => {
   it('render with wire names', async () => {
     const fake = new FakeCentrifugo((method) =>

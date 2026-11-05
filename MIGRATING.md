@@ -20,8 +20,8 @@ What changes:
 - **Credentials:** an API key, sent as `X-API-Key`, or a bearer token for
   Centrifugo PRO - not a secret signing each request.
 - **Tokens** are made with `connection()` and `subscription()` of
-  `jscent/token`, with every claim Centrifugo reads, HMAC, RSA, ECDSA or
-  Ed25519 keys, and a required expiry: `NEVER` for a token accepted forever.
+  `jscent/token`, with every claim Centrifugo reads, HMAC, RSA (2048 bits or
+  more), ECDSA or Ed25519 keys, and a required expiry: `NEVER` for a token accepted forever.
 - **Runtimes:** Node.js 22 or newer, Deno, Bun and edge runtimes, with no
   dependencies. jscent is an ES module, which CommonJS code loads with
   `require('jscent')` on Node.js 22.12 or newer.

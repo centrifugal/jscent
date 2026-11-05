@@ -1267,14 +1267,14 @@ A key signing with HS256 and secret: Centrifugo's client.token.hmac_secret_key.
 #### `static fromPem(pem: string): Promise<Key>`
 
 The key of a PEM-encoded PKCS #8 private key ("BEGIN PRIVATE KEY") - RSA
-(RS256), ECDSA on P-256, P-384 or P-521 (ES256, ES384, ES512), or Ed25519
-(EdDSA). Convert an older "BEGIN RSA PRIVATE KEY" or "BEGIN EC PRIVATE
-KEY" with `openssl pkcs8 -topk8 -nocrypt`.
+of 2048 bits or more (RS256), ECDSA on P-256, P-384 or P-521 (ES256,
+ES384, ES512), or Ed25519 (EdDSA). Convert an older "BEGIN RSA PRIVATE
+KEY" or "BEGIN EC PRIVATE KEY" with `openssl pkcs8 -topk8 -nocrypt`.
 
 #### `static fromJwk(jwk: JsonWebKey): Promise<Key>`
 
-The key of a private JSON Web Key - RSA, EC on P-256, P-384 or P-521, or
-OKP Ed25519 - as Key.fromPem makes it.
+The key of a private JSON Web Key - RSA of 2048 bits or more, EC on
+P-256, P-384 or P-521, or OKP Ed25519 - as Key.fromPem makes it.
 
 #### `static ed25519(seed: Uint8Array): Promise<Key>`
 
@@ -1637,8 +1637,10 @@ enabled sends them base64-encoded in the b64 fields, with encoding
 Security: Centrifugo trusts what a proxy endpoint answers, and the endpoint
 trusts what Centrifugo sends - a SubscribeRequest's user is the user
 Centrifugo authenticated. Anyone else able to reach the endpoint could claim
-any user. Keep proxy endpoints reachable by Centrifugo only: on an internal
-network, or behind a check of a secret Centrifugo sends as a static header.
+any user. Keep proxy endpoints reachable by Centrifugo only: on a network
+only Centrifugo reaches, or behind a check of a secret header Centrifugo
+adds to every proxy request - the proxy's static_headers option - made
+before the handler; with TLS where the traffic leaves a trusted network.
 
 ### `ConnectHandler`
 

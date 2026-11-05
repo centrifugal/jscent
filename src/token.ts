@@ -31,6 +31,9 @@ const EC_CURVES: Record<string, [alg: string, crv: string, hash: string]> = {
   '2b81040022': ['ES384', 'P-384', 'SHA-384'],
   '2b81040023': ['ES512', 'P-521', 'SHA-512'],
 };
+// The smallest RSA key signing tokens: the floor of NIST SP 800-131A, and the
+// default of key generators.
+const MIN_RSA_BITS = 2048;
 // The DER prefix of an Ed25519 private key in PKCS #8, before its 32-byte seed.
 const ED25519_PKCS8_PREFIX = hex('302e020100300506032b657004220420');
 
@@ -83,9 +86,9 @@ export class Key {
 
   /**
    * The key of a PEM-encoded PKCS #8 private key ("BEGIN PRIVATE KEY") - RSA
-   * (RS256), ECDSA on P-256, P-384 or P-521 (ES256, ES384, ES512), or Ed25519
-   * (EdDSA). Convert an older "BEGIN RSA PRIVATE KEY" or "BEGIN EC PRIVATE
-   * KEY" with `openssl pkcs8 -topk8 -nocrypt`.
+   * of 2048 bits or more (RS256), ECDSA on P-256, P-384 or P-521 (ES256,
+   * ES384, ES512), or Ed25519 (EdDSA). Convert an older "BEGIN RSA PRIVATE
+   * KEY" or "BEGIN EC PRIVATE KEY" with `openssl pkcs8 -topk8 -nocrypt`.
    */
   static async fromPem(pem: string): Promise<Key> {
     const m = /-----BEGIN ([A-Z ]+)-----([^-]+)-----END \1-----/.exec(pem);
@@ -100,12 +103,14 @@ export class Key {
     const der = Uint8Array.from(atob(m[2]!.replace(/\s+/g, '')), (c) => c.charCodeAt(0));
     const oids = derOids(der);
     if (oids.includes(OID_RSA)) {
-      return Key.#asymmetric(
-        'RS256',
-        der,
+      const k = await subtle.importKey(
+        'pkcs8',
+        der as BufferSource,
         { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-        { name: 'RSASSA-PKCS1-v1_5' },
+        true,
+        ['sign'],
       );
+      return Key.#rsa(k);
     }
     if (oids.includes(OID_EC)) {
       const curve = oids.map((o) => EC_CURVES[o]).find((c) => c !== undefined);
@@ -122,8 +127,8 @@ export class Key {
   }
 
   /**
-   * The key of a private JSON Web Key - RSA, EC on P-256, P-384 or P-521, or
-   * OKP Ed25519 - as Key.fromPem makes it.
+   * The key of a private JSON Web Key - RSA of 2048 bits or more, EC on
+   * P-256, P-384 or P-521, or OKP Ed25519 - as Key.fromPem makes it.
    */
   static async fromJwk(jwk: JsonWebKey): Promise<Key> {
     if (jwk.d === undefined) {
@@ -137,7 +142,7 @@ export class Key {
         true,
         ['sign'],
       );
-      return Key.#fromCryptoKey('RS256', k, { name: 'RSASSA-PKCS1-v1_5' });
+      return Key.#rsa(k);
     }
     if (jwk.kty === 'EC') {
       const curve = Object.values(EC_CURVES).find(([, crv]) => crv === jwk.crv);
@@ -168,6 +173,15 @@ export class Key {
     der.set(ED25519_PKCS8_PREFIX);
     der.set(seed, 16);
     return Key.#asymmetric('EdDSA', der, { name: 'Ed25519' }, { name: 'Ed25519' });
+  }
+
+  // An RSA key under 2048 bits is refused as an ECDSA key on another curve is.
+  static #rsa(key: CryptoKey): Promise<Key> {
+    const bits = (key.algorithm as RsaHashedKeyAlgorithm).modulusLength;
+    if (bits < MIN_RSA_BITS) {
+      throw new TypeError(`token: an RSA key of ${bits} bits, want ${MIN_RSA_BITS} or more`);
+    }
+    return Key.#fromCryptoKey('RS256', key, { name: 'RSASSA-PKCS1-v1_5' });
   }
 
   static async #asymmetric(

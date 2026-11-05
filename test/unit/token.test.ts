@@ -168,6 +168,26 @@ describe('tokens, spec section 11 and the vectors of 15.1', () => {
     await expect(token.Key.fromJwk({ kty: 'EC', crv: 'P-256', x: 'a', y: 'b' })).rejects.toThrow('no private part');
   });
 
+  it('refuses RSA keys under 2048 bits, as other curves', async () => {
+    const gen = {
+      name: 'RSASSA-PKCS1-v1_5',
+      modulusLength: 1024,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256',
+    };
+    const pair = (await crypto.subtle.generateKey(gen, true, ['sign', 'verify'])) as CryptoKeyPair;
+    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey));
+    const pem = `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...pkcs8))}\n-----END PRIVATE KEY-----\n`;
+    const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+    // Refused where a key is made, so no connection, subscription or API token
+    // and no JWKS can have it.
+    await expect(token.Key.fromPem(pem)).rejects.toThrow(TypeError);
+    await expect(token.Key.fromPem(pem)).rejects.toThrow('RSA key of 1024 bits, want 2048 or more');
+    await expect(token.Key.fromJwk(jwk)).rejects.toThrow(TypeError);
+    await expect(token.Key.fromJwk(jwk)).rejects.toThrow('RSA key of 1024 bits, want 2048 or more');
+    await expect(token.Key.fromJwk({ kty: 'EC', crv: 'secp256k1', x: 'a', y: 'b', d: 'c' })).rejects.toThrow(TypeError);
+  });
+
   it('makes JWKS by its rules', async () => {
     const seed = new Uint8Array(32).fill(1);
     const ed = (await token.Key.ed25519(seed)).withKeyId('e');
