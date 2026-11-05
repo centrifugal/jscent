@@ -510,9 +510,15 @@ describe('errors', () => {
 
   it('bounds every call by requestTimeout, which a timeout replaces and a signal only shortens', async () => {
     // A Centrifugo answering after ms, or never when the call ends first.
+    // Timers fire in the order of their expiry, loaded machine or not, so the
+    // tests count the answers sent rather than measure how long a call took.
+    let answers = 0;
     const answerAfter = (ms: number) => (_m: string, _j: unknown, init: RequestInit) =>
       new Promise<Response>((resolve, reject) => {
-        const t = setTimeout(() => resolve(json(200, { result: {} })), ms);
+        const t = setTimeout(() => {
+          answers++;
+          resolve(json(200, { result: {} }));
+        }, ms);
         init.signal?.addEventListener('abort', () => {
           clearTimeout(t);
           reject(init.signal?.reason);
@@ -520,19 +526,17 @@ describe('errors', () => {
       });
     const slow = new FakeCentrifugo(answerAfter(300));
     // A signal ending later than requestTimeout does not extend it.
-    let start = performance.now();
     const late = await rejection(
       slow.client({ requestTimeout: 30 }).info(undefined, { signal: AbortSignal.timeout(5000) }),
     );
     expect(late).toBeInstanceOf(TimeoutError);
-    expect(performance.now() - start).toBeLessThan(250);
+    expect(answers).toBe(0);
     // One ending sooner ends the call, as an abort: its reason.
     const reason = new Error('caller gone');
     const ac = new AbortController();
     setTimeout(() => ac.abort(reason), 20);
-    start = performance.now();
     expect(await rejection(slow.client({ requestTimeout: 5000 }).info(undefined, { signal: ac.signal }))).toBe(reason);
-    expect(performance.now() - start).toBeLessThan(250);
+    expect(answers).toBe(0);
     // A call's own timeout replaces requestTimeout, longer or shorter.
     await slow.client({ requestTimeout: 30 }).info(undefined, { timeout: 2000 });
     expect(await rejection(slow.client({ requestTimeout: 5000 }).info(undefined, { timeout: 30 }))).toBeInstanceOf(

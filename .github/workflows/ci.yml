@@ -7,13 +7,15 @@ permissions:
 
 # Every job runs npm scripts, so what passes locally passes here. Each job
 # skips a pull request from this repository's own branches, which the push
-# already ran.
+# already ran. Each job has a timeout well above its usual minute or two, so
+# that one stuck on a runner fails with its log instead of running for hours.
 
 jobs:
   test:
     name: test (${{ matrix.os }}, Node.js ${{ matrix.node }})
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +39,7 @@ jobs:
     name: runtimes (the built package on Node.js, Deno and Bun)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -57,6 +60,7 @@ jobs:
     name: check (lint, types, generated code, API.md)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -70,6 +74,7 @@ jobs:
     name: integration (Centrifugo)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # The same setup as testdata/centrifugo.json, through Centrifugo's
     # environment variables.
     services:
@@ -115,6 +120,7 @@ jobs:
     name: integration (Centrifugo PRO)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # testdata/centrifugo-pro.compose.yml, which also runs it locally: Centrifugo
     # PRO with Redis and PostgreSQL. JSCENT_TEST_PRO fails the PRO tests, rather
     # than skipping them, if the server turns out not to be PRO. The tests use
