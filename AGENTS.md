@@ -103,8 +103,9 @@ which Centrifugo reaches as `host.docker.internal`.
 
 Push a tag, `v1.0.0` say: `release.yml` sets the package version from it,
 checks and builds, publishes to npm with provenance - through npm's trusted
-publishing, no token - and creates the GitHub release. A tag with a
-pre-release part, `v1.0.0-beta.1`, publishes under npm's `next` tag.
+publishing from the `release` environment, no token - and creates the GitHub
+release. A tag with a pre-release part, `v1.0.0-beta.1`, publishes under npm's
+`next` tag.
 `package.json` keeps `0.0.0-development`: the tag is the version.
 
 ## Things that look wrong but are deliberate
