@@ -27,7 +27,7 @@ on Node.js, Deno, Bun and edge runtimes such as Cloudflare Workers.
 jscent 1 replaces jscent 0.2: see [MIGRATING.md](MIGRATING.md). jscent
 implements the
 [Centrifugo server SDK specification](https://github.com/centrifugal/gocent/blob/master/spec.md),
-version 0.3.
+version 0.4.
 
 ## Example
 
@@ -512,13 +512,16 @@ sent, as refusing a connect unless anonymous connections are allowed, and as a
 refresh or sub refresh which expired. Error codes are in [400, 1999], disconnect
 codes in [4000, 4999], and a disconnect reason is at most 32 bytes. Keep proxy
 endpoints reachable by Centrifugo only: whoever can call them can claim
-to be any user.
+to be any user. Put them on a network only Centrifugo reaches, or check a
+secret header Centrifugo adds to every proxy request with the proxy's
+`static_headers` option before the handler, and use TLS where the traffic
+leaves a trusted network.
 
 ## Tokens
 
 `jscent/token` issues the JWTs Centrifugo authenticates clients with -
 connection and subscription tokens, with Centrifugo's claims, signed with
-HMAC, RSA, ECDSA or Ed25519 through Web Crypto - and `jscent/endpoints` serves
+HMAC, RSA (2048 bits or more), ECDSA or Ed25519 through Web Crypto - and `jscent/endpoints` serves
 the endpoints the `getToken` callbacks of client SDKs call:
 
 ```ts
