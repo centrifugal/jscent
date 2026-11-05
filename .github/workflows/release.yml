@@ -1,8 +1,7 @@
 name: Release
 
-# Pushing a tag, v1.0.0 say, releases it: the package version is set from the
-# tag - package.json keeps 0.0.0-development - then the package is checked,
-# built and published to npm with provenance, and the GitHub release created.
+# Pushing a tag, v1.0.0 say, releases it: the tag must name the version in
+# package.json, then the package is checked, built and published to npm with provenance, and the GitHub release created.
 # A tag with a pre-release part, v1.0.0-beta.1, is published under npm's
 # "next" tag, so that `npm install jscent` keeps the latest stable release.
 #
@@ -30,8 +29,13 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
-      - name: Version from the tag
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+      - name: The tag names package.json's version
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME, but package.json has $version"
+            exit 1
+          fi
       - run: npm run check
       - name: Publish to npm
         env:

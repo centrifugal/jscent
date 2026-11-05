@@ -1,6 +1,6 @@
 {
   "name": "jscent",
-  "version": "0.0.0-development",
+  "version": "1.0.0",
   "description": "JavaScript SDK for Centrifugo's HTTP server API: every API method, tokens, proxy handlers and the endpoints client SDKs call. Node.js, Deno, Bun and edge runtimes.",
   "keywords": [
     "centrifugo",
