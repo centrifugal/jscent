@@ -6,9 +6,11 @@ name: Release
 # A tag with a pre-release part, v1.0.0-beta.1, is published under npm's
 # "next" tag, so that `npm install jscent` keeps the latest stable release.
 #
-# Publishing uses npm's trusted publishing: on npmjs.com, the package's
-# settings name this repository and this workflow as a trusted publisher, and
-# no token is stored. Without it, an NPM_TOKEN secret is used instead.
+# Publishing uses npm's trusted publishing
+# (https://docs.npmjs.com/trusted-publishers): on npmjs.com, the package's
+# settings name this repository, this workflow and the "release" environment
+# as a trusted publisher, and no token is stored. The job runs in that
+# environment, and the runner's OIDC identity is what npm checks.
 
 on:
   push:
@@ -21,6 +23,7 @@ permissions:
 
 jobs:
   release:
+    environment: release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -34,8 +37,6 @@ jobs:
         run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
       - run: npm run check
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           tag=latest
           case "$GITHUB_REF_NAME" in *-*) tag=next ;; esac
