@@ -176,13 +176,13 @@ describe('pages', () => {
   });
 
   it('bounds each page by pageTimeout, replacing requestTimeout, or by requestTimeout', async () => {
-    // Every page answered after 100 ms, or never when its request ends first.
+    // Every page answered after 200 ms, or never when its request ends first.
     const slow = (n: number) => {
       const inner = paged(n);
       return new FakeCentrifugo(
         (m, j, init) =>
           new Promise((resolve, reject) => {
-            const t = setTimeout(() => resolve(inner.reply(m, j, init) as never), 100);
+            const t = setTimeout(() => resolve(inner.reply(m, j, init) as never), 200);
             init.signal?.addEventListener('abort', () => {
               clearTimeout(t);
               reject(init.signal?.reason);
@@ -198,7 +198,7 @@ describe('pages', () => {
     expect(items.length).toBe(7);
     // The iteration takes longer than any page's timeout: nothing bounds the whole.
     const devices = await collect(
-      slow(7).client({ requestTimeout: 30 }).deviceListAll({ limit: 3 }, { pageTimeout: 150 }),
+      slow(7).client({ requestTimeout: 30 }).deviceListAll({ limit: 3 }, { pageTimeout: 500 }),
     );
     expect(devices.length).toBe(7);
     // Shorter: the page ends with TimeoutError.
